@@ -21,12 +21,16 @@ type Request struct {
 	Client *Client
 }
 
-func ReadRequests(reader io.Reader, duration time.Duration) ([][]Request, []time.Time, map[string]File, map[string]Client) {
+type Period struct {
+	End time.Time
+	Requests []Request
+}
+
+func ReadRequests(reader io.Reader, duration time.Duration) ([]Period, map[string]File, map[string]Client) {
 	var pend time.Time
 	p := 0
-	pt := make([]time.Time, 1)
-	requests := make([][]Request, 1)
-	requests[p] = make([]Request, 0)
+	periods := make([]Period, 1)
+	periods[p].Requests = make([]Request, 0)
 	files := make(map[string]File)
 	clients := make(map[string]Client)
 	r := csv.NewReader(reader)
@@ -46,13 +50,12 @@ func ReadRequests(reader io.Reader, duration time.Duration) ([][]Request, []time
 		t := time.Unix(ti, 0)
 		if pend.IsZero() {
 			pend = t.Round(duration)
-			pt[p] = pend
+			periods[p].End = pend
 		} else {
 			for t.After(pend) {
 				p++
-				requests = append(requests, make([]Request, 0))
 				pend = pend.Add(duration)
-				pt = append(pt, pend)
+				periods = append(periods, Period{End: pend, Requests: make([]Request, 0)})
 			}
 		}
 		if _, ok := files[rec[1]]; !ok {
@@ -63,8 +66,8 @@ func ReadRequests(reader io.Reader, duration time.Duration) ([][]Request, []time
 			clients[rec[2]] = Client{Name: rec[2]}
 		}
 		c := clients[rec[2]]
-		requests[p] = append(requests[p], Request{t, &f, &c})
+		periods[p].Requests = append(periods[p].Requests, Request{t, &f, &c})
 	}
 
-	return requests, pt, files, clients
+	return periods, files, clients
 }

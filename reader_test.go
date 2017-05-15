@@ -14,12 +14,9 @@ func TestReadRequests(t *testing.T) {
 1494979199	5bA7nrdVEqE	2`
 	reader := strings.NewReader(sample)
 	d, _ := time.ParseDuration("24h")
-	r, p, f, c := ReadRequests(reader, d)
-	if len(r[0]) != 4 {
-		t.Error("request number wrong: ", len(r))
-	}
-	if len(p) != len(r) {
-		t.Error("pt number wrong: ", len(p))
+	p, f, c := ReadRequests(reader, d)
+	if len(p[0].Requests) != 4 {
+		t.Error("requests number wrong: ", len(p))
 	}
 	if len(f) != 3 {
 		t.Error("file number wrong: ", len(f))
@@ -27,8 +24,7 @@ func TestReadRequests(t *testing.T) {
 	if len(c) != 3 {
 		t.Error("client number wrong: ", len(c))
 	}
-	t.Log("requests: ", r)
-	t.Log("pt: ", p)
+	t.Log("periods: ", p)
 	t.Log("files: ", f)
 	t.Log("clients: ", c)
 }
