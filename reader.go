@@ -8,11 +8,20 @@ import (
 )
 
 type File struct {
-	Name string
+	ID string
 }
 
 type Client struct {
-	Name string
+	ID string
+	SmallCell *SmallCell
+}
+
+func (c *Client) AssignTo(sc *SmallCell) {
+	if c.SmallCell != nil {
+		delete(c.SmallCell.Clients, c.ID)
+	}
+	sc.Clients[c.ID] = c
+	c.SmallCell = sc
 }
 
 type Request struct {
@@ -60,11 +69,11 @@ func ReadRequests(reader io.Reader, duration time.Duration) ([]Period, map[strin
 			}
 		}
 		if _, ok := files[rec[1]]; !ok {
-			files[rec[1]] = &File{Name: rec[1]}
+			files[rec[1]] = &File{ID: rec[1]}
 		}
 		f := files[rec[1]]
 		if _, ok := clients[rec[2]]; !ok {
-			clients[rec[2]] = &Client{Name: rec[2]}
+			clients[rec[2]] = &Client{ID: rec[2]}
 		}
 		c := clients[rec[2]]
 		periods[len(periods) - 1].Requests = append(periods[len(periods) - 1].Requests, Request{t, f, c})
@@ -73,8 +82,8 @@ func ReadRequests(reader io.Reader, duration time.Duration) ([]Period, map[strin
 	return periods, files, clients
 }
 
-func ReadClientsAssignment(reader io.Reader, clients map[string]*Client) []SmallCell {
-	smallCells := make([]SmallCell, 0)
+func ReadClientsAssignment(reader io.Reader, clients map[string]*Client) []*SmallCell {
+	smallCells := make([]*SmallCell, 0)
 	r := csv.NewReader(reader)
 	r.Comma = '\t'
 	r.FieldsPerRecord = -1
@@ -86,9 +95,9 @@ func ReadClientsAssignment(reader io.Reader, clients map[string]*Client) []Small
 			panic(err)
 		}
 
-		smallCells = append(smallCells, SmallCell{Clients: make(map[string]*Client)})
+		smallCells = append(smallCells, &SmallCell{Clients: make(map[string]*Client)})
 		for _, cid := range rec{
-			smallCells[len(smallCells) - 1].Clients[cid] = clients[cid]
+			clients[cid].AssignTo(smallCells[len(smallCells) - 1])
 		}
 	}
 
