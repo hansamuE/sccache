@@ -7,43 +7,43 @@ import (
 	"strconv"
 )
 
-type File struct {
-	ID string
+type file struct {
+	id string
 }
 
-type Client struct {
-	ID string
-	SmallCell *SmallCell
+type client struct {
+	id        string
+	smallCell *smallCell
 }
 
-func (c *Client) AssignTo(sc *SmallCell) {
-	if c.SmallCell != nil {
-		delete(c.SmallCell.Clients, c.ID)
+type request struct {
+	time   time.Time
+	file   *file
+	client *client
+}
+
+type period struct {
+	end      time.Time
+	requests []request
+}
+
+type smallCell struct {
+	clients map[string]*client
+}
+
+func (c *client) assignTo(sc *smallCell) {
+	if c.smallCell != nil {
+		delete(c.smallCell.clients, c.id)
 	}
-	sc.Clients[c.ID] = c
-	c.SmallCell = sc
+	sc.clients[c.id] = c
+	c.smallCell = sc
 }
 
-type Request struct {
-	Time time.Time
-	File *File
-	Client *Client
-}
-
-type Period struct {
-	End time.Time
-	Requests []Request
-}
-
-type SmallCell struct {
-	Clients map[string]*Client
-}
-
-func ReadRequests(reader io.Reader, duration time.Duration) ([]Period, map[string]*File, map[string]*Client) {
+func ReadRequests(reader io.Reader, duration time.Duration) ([]period, map[string]*file, map[string]*client) {
 	var pend time.Time
-	periods := make([]Period, 0)
-	files := make(map[string]*File)
-	clients := make(map[string]*Client)
+	periods := make([]period, 0)
+	files := make(map[string]*file)
+	clients := make(map[string]*client)
 	r := csv.NewReader(reader)
 	r.Comma = '\t'
 	for {
@@ -61,29 +61,29 @@ func ReadRequests(reader io.Reader, duration time.Duration) ([]Period, map[strin
 		t := time.Unix(ti, 0)
 		if pend.IsZero() {
 			pend = t.Round(duration)
-			periods = append(periods, Period{End: pend, Requests: make([]Request, 0)})
+			periods = append(periods, period{end: pend, requests: make([]request, 0)})
 		} else {
 			for t.After(pend) {
 				pend = pend.Add(duration)
-				periods = append(periods, Period{End: pend, Requests: make([]Request, 0)})
+				periods = append(periods, period{end: pend, requests: make([]request, 0)})
 			}
 		}
 		if _, ok := files[rec[1]]; !ok {
-			files[rec[1]] = &File{ID: rec[1]}
+			files[rec[1]] = &file{id: rec[1]}
 		}
 		f := files[rec[1]]
 		if _, ok := clients[rec[2]]; !ok {
-			clients[rec[2]] = &Client{ID: rec[2]}
+			clients[rec[2]] = &client{id: rec[2]}
 		}
 		c := clients[rec[2]]
-		periods[len(periods) - 1].Requests = append(periods[len(periods) - 1].Requests, Request{t, f, c})
+		periods[len(periods) - 1].requests = append(periods[len(periods) - 1].requests, request{t, f, c})
 	}
 
 	return periods, files, clients
 }
 
-func ReadClientsAssignment(reader io.Reader, clients map[string]*Client) []*SmallCell {
-	smallCells := make([]*SmallCell, 0)
+func ReadClientsAssignment(reader io.Reader, clients map[string]*client) []*smallCell {
+	smallCells := make([]*smallCell, 0)
 	r := csv.NewReader(reader)
 	r.Comma = '\t'
 	r.FieldsPerRecord = -1
@@ -95,9 +95,9 @@ func ReadClientsAssignment(reader io.Reader, clients map[string]*Client) []*Smal
 			panic(err)
 		}
 
-		smallCells = append(smallCells, &SmallCell{Clients: make(map[string]*Client)})
+		smallCells = append(smallCells, &smallCell{clients: make(map[string]*client)})
 		for _, cid := range rec{
-			clients[cid].AssignTo(smallCells[len(smallCells) - 1])
+			clients[cid].assignTo(smallCells[len(smallCells) - 1])
 		}
 	}
 

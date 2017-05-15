@@ -6,10 +6,10 @@ import (
 	"time"
 )
 
-var p []Period
-var f map[string]*File
-var c map[string]*Client
-var sc []*SmallCell
+var p []period
+var f map[string]*file
+var c map[string]*client
+var sc []*smallCell
 
 func TestReadRequests(t *testing.T) {
 	sample := `1494783546	NGLxoKOvzu4	1
@@ -20,7 +20,7 @@ func TestReadRequests(t *testing.T) {
 	reader := strings.NewReader(sample)
 	d, _ := time.ParseDuration("24h")
 	p, f, c = ReadRequests(reader, d)
-	if len(p[0].Requests) != 4 {
+	if len(p[0].requests) != 4 {
 		t.Error("requests number wrong:", len(p))
 	}
 	if len(f) != 3 {
@@ -44,14 +44,14 @@ func TestReadClientsAssignment(t *testing.T) {
 	}
 	t.Log("sc:", sc)
 	t.Log("sc[1]:", sc[1])
-	t.Log("c[2].SmallCell:", c["2"].SmallCell)
+	t.Log("c[2].SmallCell:", c["2"].smallCell)
 }
 
 func TestClient_AssignTo(t *testing.T) {
-	c["2"].AssignTo(sc[0])
-	if len(sc[0].Clients) != 3 {
+	c["2"].assignTo(sc[0])
+	if len(sc[0].clients) != 3 {
 		t.Error("assign error")
 	}
-	t.Log("sc[0].Clients:", sc[0].Clients)
-	t.Log("c[2].SmallCell:", c["2"].SmallCell)
+	t.Log("sc[0].Clients:", sc[0].clients)
+	t.Log("c[2].SmallCell:", c["2"].smallCell)
 }
