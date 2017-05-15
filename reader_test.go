@@ -29,6 +29,21 @@ func TestReadRequests(t *testing.T) {
 	if len(c) != 3 {
 		t.Error("client number wrong:", len(c))
 	}
+	if f["5bA7nrdVEqE"].popPrd[2] != 1 {
+		t.Error("f.popPrd wrong")
+	}
+	if f["5bA7nrdVEqE"].popAcm[2] != 2 {
+		t.Error("f.popAcm wrong")
+	}
+	if len(c["2"].popPrd[2]) != 1 {
+		t.Error("c.popPrd wrong")
+	}
+	if len(c["2"].popAcm[2]) != 3 {
+		t.Error("c.popAcm wrong")
+	}
+	if p[0].pop[f["NGLxoKOvzu4"]] != 2 {
+		t.Error("p.pop wrong")
+	}
 	t.Log("periods:", p)
 	t.Log("files:", f)
 	t.Log("clients:", c)
@@ -41,6 +56,9 @@ func TestReadClientsAssignment(t *testing.T) {
 	sc = ReadClientsAssignment(reader, c)
 	if len(sc) != 2 {
 		t.Error("sc number wrong:", len(sc))
+	}
+	if len(sc[1].popAcm[2]) != 3 {
+		t.Error("sc popAcm wrong")
 	}
 	t.Log("sc:", sc)
 	t.Log("sc[1]:", sc[1])
