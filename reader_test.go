@@ -6,6 +6,11 @@ import (
 	"time"
 )
 
+var p []Period
+var f map[string]*File
+var c map[string]*Client
+var sc []SmallCell
+
 func TestReadRequests(t *testing.T) {
 	sample := `1494783546	NGLxoKOvzu4	1
 1494783765	NGLxoKOvzu4	2
@@ -14,7 +19,7 @@ func TestReadRequests(t *testing.T) {
 1494979199	5bA7nrdVEqE	2`
 	reader := strings.NewReader(sample)
 	d, _ := time.ParseDuration("24h")
-	p, f, c := ReadRequests(reader, d)
+	p, f, c = ReadRequests(reader, d)
 	if len(p[0].Requests) != 4 {
 		t.Error("requests number wrong: ", len(p))
 	}
@@ -27,4 +32,15 @@ func TestReadRequests(t *testing.T) {
 	t.Log("periods: ", p)
 	t.Log("files: ", f)
 	t.Log("clients: ", c)
+}
+
+func TestReadClientsAssignment(t *testing.T) {
+	sample := `1	4
+2`
+	reader := strings.NewReader(sample)
+	sc = ReadClientsAssignment(reader, c)
+	if len(sc) != 2 {
+		t.Error("sc number wrong", len(sc))
+	}
+	t.Log("sc: ", sc)
 }
