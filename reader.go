@@ -42,11 +42,24 @@ type smallCell struct {
 }
 
 func (c *client) assignTo(sc *smallCell) {
-	if c.smallCell != nil {
+	osc := c.smallCell
+	if osc != nil {
 		delete(c.smallCell.clients, c.id)
 	}
 	sc.clients[c.id] = c
 	c.smallCell = sc
+
+	for p, fp := range c.popAcm {
+		if len(sc.popAcm) - 1 < p {
+			sc.popAcm = append(sc.popAcm, make(filePop))
+		}
+		for k, v := range fp {
+			if osc != nil {
+				osc.popAcm[p][k] -= v
+			}
+			sc.popAcm[p][k] += v
+		}
+	}
 }
 
 func ReadRequests(reader io.Reader, duration time.Duration) ([]period, map[string]*file, map[string]*client) {
@@ -90,17 +103,25 @@ func ReadRequests(reader io.Reader, duration time.Duration) ([]period, map[strin
 				pend = pend.Add(duration)
 				periods = append(periods, period{end: pend, requests: make([]request, 0), pop: make(filePop)})
 				p = len(periods) - 1
-				f.popPrd = append(f.popPrd, 0)
-				f.popAcm = append(f.popAcm, f.popAcm[p - 1])
-				c.popPrd = append(c.popPrd, make(filePop))
-				c.popAcm = append(c.popAcm, make(filePop))
-				for k, v := range c.popAcm[p - 1] {
-					c.popAcm[p][k] = v
-				}
 			}
 		}
 		periods[p].requests = append(periods[p].requests, request{t, f, c})
 
+		for _, fp := range files {
+			for len(fp.popPrd) - 1 < p {
+				fp.popPrd = append(fp.popPrd, 0)
+				fp.popAcm = append(fp.popAcm, fp.popAcm[len(fp.popAcm) - 1])
+			}
+		}
+		for _, cp := range clients {
+			for len(cp.popPrd) - 1 < p {
+				cp.popPrd = append(cp.popPrd, make(filePop))
+				cp.popAcm = append(cp.popAcm, make(filePop))
+				for k, v := range cp.popAcm[len(cp.popAcm) - 2] {
+					cp.popAcm[len(cp.popAcm) - 1][k] = v
+				}
+			}
+		}
 		f.popPrd[p]++
 		f.popAcm[p]++
 		c.popPrd[p][f]++
@@ -125,15 +146,8 @@ func ReadClientsAssignment(reader io.Reader, clients map[string]*client) []*smal
 		}
 
 		smallCells = append(smallCells, &smallCell{clients: make(map[string]*client), popAcm: []filePop{make(filePop)}})
-		sc := len(smallCells) - 1
 		for _, cid := range rec{
-			clients[cid].assignTo(smallCells[sc])
-			for p, m := range clients[cid].popAcm {
-				for k, v := range m {
-					smallCells[sc].popAcm[p][k] += v
-				}
-				smallCells[sc].popAcm = append(smallCells[sc].popAcm, make(filePop))
-			}
+			clients[cid].assignTo(smallCells[len(smallCells) - 1])
 		}
 	}
 

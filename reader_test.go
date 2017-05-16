@@ -65,7 +65,7 @@ func TestReadClientsAssignment(t *testing.T) {
 	t.Log("c[2].SmallCell:", c["2"].smallCell)
 }
 
-func TestClient_AssignTo(t *testing.T) {
+func TestClient_assignTo(t *testing.T) {
 	c["2"].assignTo(sc[0])
 	if len(sc[0].clients) != 3 {
 		t.Error("assign error")
