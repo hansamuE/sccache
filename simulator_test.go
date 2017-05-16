@@ -14,6 +14,11 @@ var (
 	fl2 fileList
 )
 
+func TestFilePop_calSimilarity(t *testing.T) {
+	s := fp1.calSimilarity([]filePop{fp2}, exponential, nil)[0]
+	t.Log("similarity:", s)
+}
+
 func TestExponential(t *testing.T) {
 	t.Log("exponential:", exponential(fpn1, fpn2))
 }
@@ -33,7 +38,6 @@ func TestFilePop_normalize(t *testing.T) {
 	if fpn1[f3] != 0.5 {
 		t.Error("filePop.normalize wrong")
 	}
-	t.Log(fpn1)
 }
 
 func TestFilePop_getFileList(t *testing.T) {

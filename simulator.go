@@ -2,6 +2,31 @@ package sccache
 
 import "math"
 
+type simFormula func(filePopNorm, filePopNorm) float64
+
+func (fp filePop) calSimilarity(fps []filePop, fn simFormula, lfl fileList) []float64 {
+	s := make([]float64, len(fps))
+	ifl := fp.getFileList()
+	if lfl != nil {
+		ifl = ifl.intersection(lfl)
+	}
+	for i, fp2 := range fps {
+		ifl = ifl.intersection(fp2.getFileList())
+		if ifl == nil {
+			s[i] = 0
+			continue
+		}
+		ifp := make(filePop)
+		ifp2 := make(filePop)
+		for _, f := range ifl {
+			ifp[f] = fp[f]
+			ifp2[f] = fp2[f]
+		}
+		s[i] = fn(ifp.normalize(), ifp2.normalize())
+	}
+	return s
+}
+
 func exponential(fpn1 filePopNorm, fpn2 filePopNorm) float64 {
 	var numerator float64
 	for k, v := range fpn1 {
@@ -46,10 +71,10 @@ func (fp filePop) getFileList() fileList {
 
 func (fl fileList) intersection(fl2 fileList) fileList {
 	ifl := make([]*file, 0)
-	for i := range fl {
-		for j := range fl2 {
-			if fl[i] == fl2[j] {
-				ifl = append(ifl, fl[i])
+	for _, f := range fl {
+		for _, f2 := range fl2 {
+			if f == f2 {
+				ifl = append(ifl, f)
 				break
 			}
 		}
