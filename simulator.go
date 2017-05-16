@@ -35,3 +35,24 @@ func (fp filePop) normalize() filePopNorm {
 	}
 	return fpn
 }
+
+func (fp filePop) getFileList() fileList {
+	fl := make([]*file, 0, len(fp))
+	for k := range fp {
+		fl = append(fl, k)
+	}
+	return fl
+}
+
+func (fl fileList) intersection(fl2 fileList) fileList {
+	ifl := make([]*file, 0)
+	for i := range fl {
+		for j := range fl2 {
+			if fl[i] == fl2[j] {
+				ifl = append(ifl, fl[i])
+				break
+			}
+		}
+	}
+	return ifl
+}

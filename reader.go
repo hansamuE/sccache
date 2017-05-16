@@ -11,6 +11,8 @@ type filePop map[*file]int
 
 type filePopNorm map[*file]float64
 
+type fileList []*file
+
 type file struct {
 	id string
 	popPrd []int
