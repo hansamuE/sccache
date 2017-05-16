@@ -14,6 +14,10 @@ var (
 	fl2 fileList
 )
 
+func TestArrangeCooperation(t *testing.T) {
+	t.Log(scl.arrangeCooperation(-1, exponential, 2))
+}
+
 func TestSmallCellList_calSimilarity(t *testing.T) {
 	t.Log("scl.calSimilarity:", scl.calSimilarity(exponential, 2))
 }

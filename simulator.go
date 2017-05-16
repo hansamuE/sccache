@@ -4,6 +4,77 @@ import "math"
 
 type simFormula func(filePopNorm, filePopNorm) float64
 
+type cacheStorageList []*cacheStorage
+
+type cacheStorage struct {
+	smallCells smallCellList
+	popAcm []filePop
+}
+
+func (sc *smallCell) assignTo(cs *cacheStorage) {
+	ocs := sc.cacheStorage
+	if ocs != nil {
+		ocssc := ocs.smallCells
+		for i := range ocssc {
+			if ocssc[i] == sc {
+				ocssc = append(ocssc[:i], ocssc[i + 1:]...)
+			}
+		}
+	}
+	cs.smallCells = append(cs.smallCells, sc)
+	sc.cacheStorage = cs
+
+	for p, fp := range sc.popAcm {
+		if len(cs.popAcm) - 1 < p {
+			cs.popAcm = append(cs.popAcm, make(filePop))
+		}
+		for k, v := range fp {
+			if ocs != nil {
+				ocs.popAcm[p][k] -= v
+			}
+			cs.popAcm[p][k] += v
+		}
+	}
+}
+
+func (scl smallCellList) arrangeCooperation(threshold float64, fn simFormula, p int) cacheStorageList {
+	group := make([]smallCellList, 0)
+	if threshold < 0 {
+		for _, sc := range scl {
+			group = append(group, smallCellList{sc})
+		}
+	} else {
+		ok := make([]bool, len(scl))
+		sim := scl.calSimilarity(fn, p)
+		for i := 0; i < len(scl) - 1; i++ {
+			if ok[i] {
+				continue
+			}
+			group = append(group, smallCellList{scl[i]})
+			ok[i] = true
+			for j := i + 1; j < len(scl); j++ {
+				if ok[j] {
+					continue
+				}
+				if sim[i][j] >= threshold {
+					group[len(group) - 1] = append(group[len(group) - 1], scl[j])
+					ok[j] = true
+				}
+			}
+		}
+	}
+
+	csl := make(cacheStorageList, len(group))
+	for i, g := range group {
+		csl[i] = &cacheStorage{smallCells: make(smallCellList, 0)}
+		for _, sc := range g {
+			sc.assignTo(csl[i])
+		}
+	}
+
+	return csl
+}
+
 func (scl smallCellList) calSimilarity(fn simFormula, p int) [][]float64 {
 	s := make([][]float64, len(scl))
 	for i := range s {

@@ -19,7 +19,7 @@ func TestReadRequests(t *testing.T) {
 1494979199	5bA7nrdVEqE	2`
 	reader := strings.NewReader(sample)
 	d, _ := time.ParseDuration("24h")
-	p, f, c = ReadRequests(reader, d)
+	p, f, c = readRequests(reader, d)
 	if len(p[0].requests) != 4 {
 		t.Error("requests number wrong:", len(p))
 	}
@@ -53,7 +53,7 @@ func TestReadClientsAssignment(t *testing.T) {
 	sample := `1	4
 2`
 	reader := strings.NewReader(sample)
-	scl = ReadClientsAssignment(reader, c)
+	scl = readClientsAssignment(reader, c)
 	if len(scl) != 2 {
 		t.Error("sc number wrong:", len(scl))
 	}

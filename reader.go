@@ -43,6 +43,7 @@ type period struct {
 type smallCell struct {
 	clients map[string]*client
 	popAcm []filePop
+	cacheStorage *cacheStorage
 }
 
 func (c *client) assignTo(sc *smallCell) {
@@ -66,7 +67,7 @@ func (c *client) assignTo(sc *smallCell) {
 	}
 }
 
-func ReadRequests(reader io.Reader, duration time.Duration) ([]period, map[string]*file, map[string]*client) {
+func readRequests(reader io.Reader, duration time.Duration) ([]period, map[string]*file, map[string]*client) {
 	var pend time.Time
 	var p int
 	var f *file
@@ -136,7 +137,7 @@ func ReadRequests(reader io.Reader, duration time.Duration) ([]period, map[strin
 	return periods, files, clients
 }
 
-func ReadClientsAssignment(reader io.Reader, clients map[string]*client) smallCellList {
+func readClientsAssignment(reader io.Reader, clients map[string]*client) smallCellList {
 	smallCells := make(smallCellList, 0)
 	r := csv.NewReader(reader)
 	r.Comma = '\t'
