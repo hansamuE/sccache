@@ -14,7 +14,13 @@ var (
 func TestExponential(t *testing.T) {
 	fpn1 = filePopNorm{f1: 0.1, f2: 0.9}
 	fpn2 = filePopNorm{f1: 0.7, f2: 0.3}
-	t.Log("bigclam:", exponential(fpn1, fpn2))
+	t.Log("exponential:", exponential(fpn1, fpn2))
+}
+
+func TestCosine(t *testing.T) {
+	fpn1 = filePopNorm{f1: 0.1, f2: 0.9}
+	fpn2 = filePopNorm{f1: 0.7, f2: 0.3}
+	t.Log("cosine:", cosine(fpn1, fpn2))
 }
 
 func TestFilePop_sum(t *testing.T) {
