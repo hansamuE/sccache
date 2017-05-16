@@ -7,6 +7,10 @@ import (
 	"strconv"
 )
 
+type filePop map[*file]int
+
+type filePopNorm map[*file]float64
+
 type file struct {
 	id string
 	popPrd []int
@@ -16,8 +20,8 @@ type file struct {
 type client struct {
 	id        string
 	smallCell *smallCell
-	popPrd []map[*file]int
-	popAcm []map[*file]int
+	popPrd []filePop
+	popAcm []filePop
 }
 
 type request struct {
@@ -29,12 +33,12 @@ type request struct {
 type period struct {
 	end      time.Time
 	requests []request
-	pop map[*file]int
+	pop      filePop
 }
 
 type smallCell struct {
 	clients map[string]*client
-	popAcm []map[*file]int
+	popAcm []filePop
 }
 
 func (c *client) assignTo(sc *smallCell) {
@@ -69,7 +73,7 @@ func ReadRequests(reader io.Reader, duration time.Duration) ([]period, map[strin
 			f = files[rec[1]]
 		}
 		if c, ok = clients[rec[2]]; !ok {
-			clients[rec[2]] = &client{id: rec[2], popPrd: []map[*file]int{make(map[*file]int)}, popAcm: []map[*file]int{make(map[*file]int)}}
+			clients[rec[2]] = &client{id: rec[2], popPrd: []filePop{make(filePop)}, popAcm: []filePop{make(filePop)}}
 			c = clients[rec[2]]
 		}
 		ti, err := strconv.ParseInt(rec[0], 10, 64)
@@ -79,17 +83,17 @@ func ReadRequests(reader io.Reader, duration time.Duration) ([]period, map[strin
 		t := time.Unix(ti, 0)
 		if pend.IsZero() {
 			pend = t.Round(duration)
-			periods = append(periods, period{end: pend, requests: make([]request, 0), pop: make(map[*file]int)})
+			periods = append(periods, period{end: pend, requests: make([]request, 0), pop: make(filePop)})
 			p = 0
 		} else {
 			for t.After(pend) {
 				pend = pend.Add(duration)
-				periods = append(periods, period{end: pend, requests: make([]request, 0), pop: make(map[*file]int)})
+				periods = append(periods, period{end: pend, requests: make([]request, 0), pop: make(filePop)})
 				p = len(periods) - 1
 				f.popPrd = append(f.popPrd, 0)
 				f.popAcm = append(f.popAcm, f.popAcm[p - 1])
-				c.popPrd = append(c.popPrd, make(map[*file]int))
-				c.popAcm = append(c.popAcm, make(map[*file]int))
+				c.popPrd = append(c.popPrd, make(filePop))
+				c.popAcm = append(c.popAcm, make(filePop))
 				for k, v := range c.popAcm[p - 1] {
 					c.popAcm[p][k] = v
 				}
@@ -120,7 +124,7 @@ func ReadClientsAssignment(reader io.Reader, clients map[string]*client) []*smal
 			panic(err)
 		}
 
-		smallCells = append(smallCells, &smallCell{clients: make(map[string]*client), popAcm: []map[*file]int{make(map[*file]int)}})
+		smallCells = append(smallCells, &smallCell{clients: make(map[string]*client), popAcm: []filePop{make(filePop)}})
 		sc := len(smallCells) - 1
 		for _, cid := range rec{
 			clients[cid].assignTo(smallCells[sc])
@@ -128,7 +132,7 @@ func ReadClientsAssignment(reader io.Reader, clients map[string]*client) []*smal
 				for k, v := range m {
 					smallCells[sc].popAcm[p][k] += v
 				}
-				smallCells[sc].popAcm = append(smallCells[sc].popAcm, make(map[*file]int))
+				smallCells[sc].popAcm = append(smallCells[sc].popAcm, make(filePop))
 			}
 		}
 	}
