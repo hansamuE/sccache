@@ -1,8 +1,15 @@
 package sccache
 
-//func bigclam(p1 map[*file]int, p2 map[*file]int) float64 {
-//
-//}
+import "math"
+
+func exponential(fpn1 filePopNorm, fpn2 filePopNorm) float64 {
+	var numerator float64
+	for k, v := range fpn1{
+		numerator -= v * fpn2[k]
+	}
+	numerator = math.Exp(numerator)
+	return 1 - numerator
+}
 
 func (fp filePop) sum() (s int) {
 	for _, v := range fp {
