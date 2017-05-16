@@ -4,27 +4,36 @@ import "math"
 
 type simFormula func(filePopNorm, filePopNorm) float64
 
-func (fp filePop) calSimilarity(fps []filePop, fn simFormula, lfl fileList) []float64 {
-	s := make([]float64, len(fps))
+func (scl smallCellList) calSimilarity(fn simFormula, p int) [][]float64 {
+	s := make([][]float64, len(scl))
+	for i := range s {
+		s[i] = make([]float64, len(scl))
+	}
+	for i, sc := range scl {
+		for j := i + 1; j < len(scl); j++ {
+			s[i][j] = sc.popAcm[p].calSimilarity(scl[j].popAcm[p], fn, nil)
+			s[j][i] = s[i][j]
+		}
+	}
+	return s
+}
+
+func (fp filePop) calSimilarity(fp2 filePop, fn simFormula, lfl fileList) float64 {
 	ifl := fp.getFileList()
 	if lfl != nil {
 		ifl = ifl.intersection(lfl)
 	}
-	for i, fp2 := range fps {
-		ifl = ifl.intersection(fp2.getFileList())
-		if ifl == nil {
-			s[i] = 0
-			continue
-		}
-		ifp := make(filePop)
-		ifp2 := make(filePop)
-		for _, f := range ifl {
-			ifp[f] = fp[f]
-			ifp2[f] = fp2[f]
-		}
-		s[i] = fn(ifp.normalize(), ifp2.normalize())
+	ifl = ifl.intersection(fp2.getFileList())
+	if ifl == nil {
+		return 0
 	}
-	return s
+	ifp := make(filePop)
+	ifp2 := make(filePop)
+	for _, f := range ifl {
+		ifp[f] = fp[f]
+		ifp2[f] = fp2[f]
+	}
+	return fn(ifp.normalize(), ifp2.normalize())
 }
 
 func exponential(fpn1 filePopNorm, fpn2 filePopNorm) float64 {

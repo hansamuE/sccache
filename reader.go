@@ -13,6 +13,8 @@ type filePopNorm map[*file]float64
 
 type fileList []*file
 
+type smallCellList []*smallCell
+
 type file struct {
 	id string
 	popPrd []int
@@ -134,8 +136,8 @@ func ReadRequests(reader io.Reader, duration time.Duration) ([]period, map[strin
 	return periods, files, clients
 }
 
-func ReadClientsAssignment(reader io.Reader, clients map[string]*client) []*smallCell {
-	smallCells := make([]*smallCell, 0)
+func ReadClientsAssignment(reader io.Reader, clients map[string]*client) smallCellList {
+	smallCells := make(smallCellList, 0)
 	r := csv.NewReader(reader)
 	r.Comma = '\t'
 	r.FieldsPerRecord = -1

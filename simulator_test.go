@@ -14,9 +14,13 @@ var (
 	fl2 fileList
 )
 
+func TestSmallCellList_calSimilarity(t *testing.T) {
+	t.Log("scl.calSimilarity:", scl.calSimilarity(exponential, 2))
+}
+
 func TestFilePop_calSimilarity(t *testing.T) {
-	s := fp1.calSimilarity([]filePop{fp2}, exponential, nil)[0]
-	t.Log("similarity:", s)
+	s := fp1.calSimilarity(fp2, exponential, nil)
+	t.Log("filePop.calSimilarity:", s)
 }
 
 func TestExponential(t *testing.T) {

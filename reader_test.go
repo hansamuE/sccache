@@ -9,7 +9,7 @@ import (
 var p []period
 var f map[string]*file
 var c map[string]*client
-var sc []*smallCell
+var scl smallCellList
 
 func TestReadRequests(t *testing.T) {
 	sample := `1494783546	NGLxoKOvzu4	1
@@ -53,23 +53,23 @@ func TestReadClientsAssignment(t *testing.T) {
 	sample := `1	4
 2`
 	reader := strings.NewReader(sample)
-	sc = ReadClientsAssignment(reader, c)
-	if len(sc) != 2 {
-		t.Error("sc number wrong:", len(sc))
+	scl = ReadClientsAssignment(reader, c)
+	if len(scl) != 2 {
+		t.Error("sc number wrong:", len(scl))
 	}
-	if len(sc[1].popAcm[2]) != 3 {
+	if len(scl[1].popAcm[2]) != 3 {
 		t.Error("sc popAcm wrong")
 	}
-	t.Log("sc:", sc)
-	t.Log("sc[1]:", sc[1])
+	t.Log("sc:", scl)
+	t.Log("sc[1]:", scl[1])
 	t.Log("c[2].SmallCell:", c["2"].smallCell)
 }
 
 func TestClient_assignTo(t *testing.T) {
-	c["2"].assignTo(sc[0])
-	if len(sc[0].clients) != 3 {
+	c["2"].assignTo(scl[0])
+	if len(scl[0].clients) != 3 {
 		t.Error("assign error")
 	}
-	t.Log("sc[0].Clients:", sc[0].clients)
+	t.Log("sc[0].Clients:", scl[0].clients)
 	t.Log("c[2].SmallCell:", c["2"].smallCell)
 }
