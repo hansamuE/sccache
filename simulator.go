@@ -351,8 +351,19 @@ func (p *period) setPopFiles(files map[string]*file, pn int) {
 		prd = append(prd, popFile{f, f.popPrd[pn]})
 		acm = append(acm, popFile{f, f.popAcm[pn]})
 	}
+	sort.Sort(prd)
+	sort.Sort(acm)
 	p.popFiles = prd
 	p.popFilesAcm = acm
+}
+
+func (cs *cacheStorage) setPopFiles(pn int) {
+	pfl := make(popFileList, 0)
+	for f, pop := range cs.popAcm[pn] {
+		pfl = append(pfl, popFile{f, pop})
+	}
+	sort.Sort(pfl)
+	cs.popFiles[pn] = pfl
 }
 
 func (pfl popFileList) Len() int {
