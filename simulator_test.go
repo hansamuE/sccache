@@ -65,5 +65,13 @@ func TestFileList_intersection(t *testing.T) {
 }
 
 func TestCsl_hasFile(t *testing.T) {
-	t.Log(csl.hasFile(f1))
+	t.Log(csl.smallCellsHasFile(f1))
+}
+
+func TestCsl_assignNewClient(t *testing.T) {
+	csl.assignNewClient(c["1"], f1, scl)
+}
+
+func TestSimulate(t *testing.T) {
+	p.simulate(2, csl, scl, lfu)
 }

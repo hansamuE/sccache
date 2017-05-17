@@ -13,10 +13,15 @@ type filePopNorm map[*file]float64
 
 type fileList []*file
 
+type clientList []*client
+
+type periodList []period
+
 type smallCellList []*smallCell
 
 type file struct {
 	id string
+	size int
 	popPrd []int
 	popAcm []int
 }
@@ -35,10 +40,10 @@ type request struct {
 }
 
 type period struct {
-	id int
 	end      time.Time
 	requests []request
 	pop      filePop
+	newClients clientList
 }
 
 type smallCell struct {
@@ -74,13 +79,13 @@ func (c *client) assignTo(sc *smallCell) {
 	}
 }
 
-func readRequests(reader io.Reader, duration time.Duration) ([]period, map[string]*file, map[string]*client) {
+func readRequests(reader io.Reader, duration time.Duration) (periodList, map[string]*file, map[string]*client) {
 	var pend time.Time
 	var p int
 	var f *file
 	var c *client
 	var ok bool
-	periods := make([]period, 0)
+	periods := make(periodList, 0)
 	files := make(map[string]*file)
 	clients := make(map[string]*client)
 	r := csv.NewReader(reader)
@@ -109,12 +114,12 @@ func readRequests(reader io.Reader, duration time.Duration) ([]period, map[strin
 		if pend.IsZero() {
 			p = 0
 			pend = t.Round(duration)
-			periods = append(periods, period{id: p, end: pend, requests: make([]request, 0), pop: make(filePop)})
+			periods = append(periods, period{end: pend, requests: make([]request, 0), pop: make(filePop), newClients: make(clientList, 0)})
 		} else {
 			for t.After(pend) {
 				p = len(periods)
 				pend = pend.Add(duration)
-				periods = append(periods, period{id: p, end: pend, requests: make([]request, 0), pop: make(filePop)})
+				periods = append(periods, period{end: pend, requests: make([]request, 0), pop: make(filePop), newClients: make(clientList, 0)})
 			}
 		}
 		periods[p].requests = append(periods[p].requests, request{t, f, c})

@@ -6,6 +6,8 @@ import (
 	"sort"
 )
 
+type cachePolicy func(*file, time.Time,*cacheStorage, *cache)
+
 type simFormula func(filePopNorm, filePopNorm) float64
 
 type cacheStorageList []*cacheStorage
@@ -13,7 +15,9 @@ type cacheStorageList []*cacheStorage
 type cacheStorage struct {
 	smallCells smallCellList
 	popAcm []filePop
-	caches []cache
+	caches []*cache
+	size int
+	space int
 }
 
 type cache struct {
@@ -22,27 +26,58 @@ type cache struct {
 	lastReq time.Time
 }
 
-//func (p *period) serve() {
-//	for _, r := range p.requests {
-//		t, f, c := r.time, r.file, r.client
-//		if c.smallCell == nil {
-//
-//		}
-//	}
-//}
+func lfu(f *file, t time.Time, cs *cacheStorage, c *cache) {
 
-func (csl cacheStorageList) hasFile(f *file) smallCellList {
-	scl := make(smallCellList, 0)
-	for _, cs := range csl {
-		for _, c := range cs.caches {
-			if c.file == f {
-				scl = append(scl, cs.smallCells...)
-				break
-			}
+}
+
+func (pl periodList) simulate(pn int, csl cacheStorageList, scl smallCellList, cp cachePolicy) {
+	p := pl[pn]
+	for _, r := range p.requests {
+		t, f, c := r.time, r.file, r.client
+		if c.smallCell == nil {
+			csl.assignNewClient(c, f, scl)
+			p.newClients = append(p.newClients, c)
+		}
+		if ok, cf := c.smallCell.cacheStorage.hasFile(f); ok && cf.size == cf.file.size {
+
+		} else {
+			cp(f, t, c.smallCell.cacheStorage, cf)
 		}
 	}
-	sort.Sort(scl)
+}
+
+func (csl cacheStorageList) assignNewClient(c *client, f *file, scl smallCellList) {
+	sclf := csl.smallCellsHasFile(f)
+	if len(sclf) != 0 {
+		c.assignTo(sclf.leastClients())
+	} else {
+		c.assignTo(scl.leastClients())
+	}
+}
+
+func (cs *cacheStorage) hasFile(f *file) (bool, *cache) {
+	for _, c := range cs.caches {
+		if c.file == f {
+			return true, c
+		}
+	}
+	return false, nil
+}
+
+func (csl cacheStorageList) smallCellsHasFile(f *file) smallCellList {
+	scl := make(smallCellList, 0)
+	for _, cs := range csl {
+		if ok, _ := cs.hasFile(f); ok {
+			scl = append(scl, cs.smallCells...)
+			break
+		}
+	}
 	return scl
+}
+
+func (scl smallCellList) leastClients() *smallCell {
+	sort.Sort(scl)
+	return scl[0]
 }
 
 func (scl smallCellList) Len() int {
@@ -60,30 +95,30 @@ func (scl smallCellList) Swap(i, j int) {
 func (sc *smallCell) assignTo(cs *cacheStorage) {
 	ocs := sc.cacheStorage
 	if ocs != nil {
-		ocssc := ocs.smallCells
-		for i := range ocssc {
-			if ocssc[i] == sc {
-				ocssc = append(ocssc[:i], ocssc[i + 1:]...)
+		scl := ocs.smallCells
+		for i := range scl {
+			if scl[i] == sc {
+				scl = append(scl[:i], scl[i + 1:]...)
 			}
 		}
 	}
 	cs.smallCells = append(cs.smallCells, sc)
 	sc.cacheStorage = cs
 
-	for p, fp := range sc.popAcm {
-		if len(cs.popAcm) - 1 < p {
+	for pn, fp := range sc.popAcm {
+		if len(cs.popAcm) - 1 < pn {
 			cs.popAcm = append(cs.popAcm, make(filePop))
 		}
 		for k, v := range fp {
 			if ocs != nil {
-				ocs.popAcm[p][k] -= v
+				ocs.popAcm[pn][k] -= v
 			}
-			cs.popAcm[p][k] += v
+			cs.popAcm[pn][k] += v
 		}
 	}
 }
 
-func (scl smallCellList) arrangeCooperation(threshold float64, fn simFormula, p int) cacheStorageList {
+func (scl smallCellList) arrangeCooperation(threshold float64, fn simFormula, pn int) cacheStorageList {
 	group := make([]smallCellList, 0)
 	if threshold < 0 {
 		for _, sc := range scl {
@@ -91,7 +126,7 @@ func (scl smallCellList) arrangeCooperation(threshold float64, fn simFormula, p 
 		}
 	} else {
 		ok := make([]bool, len(scl))
-		sim := scl.calSimilarity(fn, p)
+		sim := scl.calSimilarity(fn, pn)
 		for i := 0; i < len(scl) - 1; i++ {
 			if ok[i] {
 				continue
@@ -121,14 +156,14 @@ func (scl smallCellList) arrangeCooperation(threshold float64, fn simFormula, p 
 	return csl
 }
 
-func (scl smallCellList) calSimilarity(fn simFormula, p int) [][]float64 {
+func (scl smallCellList) calSimilarity(fn simFormula, pn int) [][]float64 {
 	s := make([][]float64, len(scl))
 	for i := range s {
 		s[i] = make([]float64, len(scl))
 	}
 	for i, sc := range scl {
 		for j := i + 1; j < len(scl); j++ {
-			s[i][j] = sc.popAcm[p].calSimilarity(scl[j].popAcm[p], fn, nil)
+			s[i][j] = sc.popAcm[pn].calSimilarity(scl[j].popAcm[pn], fn, nil)
 			s[j][i] = s[i][j]
 		}
 	}
