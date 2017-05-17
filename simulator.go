@@ -6,7 +6,7 @@ import (
 	"sort"
 )
 
-type cachePolicy func(*file, time.Time,*cacheStorage, *cache)
+type cachePolicy func([]*cache) []*cache
 
 type simFormula func(filePopNorm, filePopNorm) float64
 
@@ -18,16 +18,79 @@ type cacheStorage struct {
 	caches []*cache
 	size int
 	space int
+	downloaded int
+	served int
 }
 
 type cache struct {
 	file *file
 	size int
+	fixed bool
+	count int
 	lastReq time.Time
 }
 
-func lfu(f *file, t time.Time, cs *cacheStorage, c *cache) {
+func leastFreqUsed(cl []*cache) []*cache {
+	sort.Sort(cacheListFreq(cl))
+	return cl
+}
 
+type cacheListFreq []*cache
+
+func (cl cacheListFreq) Len() int {
+	return len(cl)
+}
+
+func (cl cacheListFreq) Less(i, j int) bool {
+	return cl[i].count < cl[j].count
+}
+
+func (cl cacheListFreq) Swap(i, j int) {
+	cl[i], cl[j] = cl[j], cl[i]
+}
+
+func (cs *cacheStorage) cacheFile(f *file, cp cachePolicy) (int, *cache) {
+	sizeNotCached := f.size
+	ok, cf := cs.hasFile(f)
+	if ok {
+		sizeNotCached -= cf.size
+	} else {
+		cf = &cache{file: f}
+	}
+	sizeCached := cf.size
+	if !ok || cf.size != f.size {
+		cl := cp(cs.caches)
+		if cs.space >= sizeNotCached {
+			cs.space -= sizeNotCached
+			sizeNotCached = 0
+		} else {
+			sizeNotCached -= cs.space
+			cs.space = 0
+			di := make([]int, 0)
+			for i, v := range cl {
+				if v == cf || v.fixed {
+					continue
+				}
+				sizeNotCached -= v.size
+				if sizeNotCached <= 0 {
+					if sizeNotCached == 0 {
+						di = append(di, i)
+					} else {
+						v.size = -sizeNotCached
+						sizeNotCached = 0
+					}
+					break
+				}
+				di = append(di, i)
+			}
+			deleteCache(cl, di)
+		}
+		cf.size = f.size - sizeNotCached
+		if cf.size != 0 {
+			cl = append(cl, cf)
+		}
+	}
+	return sizeCached, cf
 }
 
 func (pl periodList) simulate(pn int, csl cacheStorageList, scl smallCellList, cp cachePolicy) {
@@ -38,11 +101,19 @@ func (pl periodList) simulate(pn int, csl cacheStorageList, scl smallCellList, c
 			csl.assignNewClient(c, f, scl)
 			p.newClients = append(p.newClients, c)
 		}
-		if ok, cf := c.smallCell.cacheStorage.hasFile(f); ok && cf.size == cf.file.size {
 
-		} else {
-			cp(f, t, c.smallCell.cacheStorage, cf)
-		}
+		cs := c.smallCell.cacheStorage
+		sizeCached, cf := cs.cacheFile(f, cp)
+		cf.count++
+		cf.lastReq = t
+		cs.served += sizeCached
+		cs.downloaded += f.size - sizeCached
+	}
+}
+
+func deleteCache(c []*cache, di []int) {
+	for i, v := range di {
+		c = append(c[:v - i], c[v - i + 1:]...)
 	}
 }
 

@@ -73,5 +73,5 @@ func TestCsl_assignNewClient(t *testing.T) {
 }
 
 func TestSimulate(t *testing.T) {
-	p.simulate(2, csl, scl, lfu)
+	p.simulate(2, csl, scl, leastFreqUsed)
 }
