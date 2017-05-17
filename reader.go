@@ -42,6 +42,7 @@ type period struct {
 	requests []request
 	pop      filePop
 	newClients clientList
+	stats
 }
 
 type smallCell struct {

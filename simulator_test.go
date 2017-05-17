@@ -13,7 +13,13 @@ var (
 	fl1 fileList
 	fl2 fileList
 	csl cacheStorageList
+	stat stats = stats{downloaded: 3, served: 72}
 )
+
+func TestCalStat(t *testing.T) {
+	stat.calRate()
+	t.Log("dlRate:", stat.dlRate)
+}
 
 func TestArrangeCooperation(t *testing.T) {
 	csl = scl.arrangeCooperation(-1, exponential, 2)

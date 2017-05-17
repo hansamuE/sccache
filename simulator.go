@@ -18,8 +18,7 @@ type cacheStorage struct {
 	caches []*cache
 	size int
 	space int
-	downloaded int
-	served int
+	stats
 }
 
 type cache struct {
@@ -28,6 +27,16 @@ type cache struct {
 	fixed bool
 	count int
 	lastReq time.Time
+}
+
+type stats struct {
+	downloaded int
+	served int
+	dlRate float64
+}
+
+func (s *stats) calRate() {
+	s.dlRate = float64(s.downloaded) / float64(s.downloaded + s.served)
 }
 
 func leastFreqUsed(cl []*cache) []*cache {
@@ -126,6 +135,8 @@ func (p period) simulate(csl cacheStorageList, scl smallCellList, cp cachePolicy
 		cf.lastReq = t
 		cs.served += sizeCached
 		cs.downloaded += f.size - sizeCached
+		p.served += sizeCached
+		p.downloaded += f.size - sizeCached
 	}
 }
 
