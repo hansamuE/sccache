@@ -49,6 +49,25 @@ func (cl cacheListFreq) Swap(i, j int) {
 	cl[i], cl[j] = cl[j], cl[i]
 }
 
+func leastRecentUsed(cl []*cache) []*cache {
+	sort.Sort(cacheListRecent(cl))
+	return cl
+}
+
+type cacheListRecent []*cache
+
+func (cl cacheListRecent) Len() int {
+	return len(cl)
+}
+
+func (cl cacheListRecent) Less(i, j int) bool {
+	return cl[i].lastReq.Before(cl[j].lastReq)
+}
+
+func (cl cacheListRecent) Swap(i, j int) {
+	cl[i], cl[j] = cl[j], cl[i]
+}
+
 func (cs *cacheStorage) cacheFile(f *file, cp cachePolicy) (int, *cache) {
 	sizeNotCached := f.size
 	ok, cf := cs.hasFile(f)
