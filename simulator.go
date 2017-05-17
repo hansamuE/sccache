@@ -40,6 +40,15 @@ func (s *stats) calRate() {
 	s.dlRate = float64(s.downloaded) / float64(s.downloaded + s.served)
 }
 
+func (pl periodList) calRate() float64 {
+	var dl, sv int
+	for _, p := range pl {
+		dl += p.downloaded
+		sv += p.served
+	}
+	return float64(dl) / float64(dl + sv)
+}
+
 func leastFreqUsed(cl []*cache) []*cache {
 	sort.Sort(cacheListFreq(cl))
 	return cl
@@ -347,17 +356,19 @@ func (fl fileList) intersection(fl2 fileList) fileList {
 	return ifl
 }
 
-func (p *period) setPopFiles(files map[string]*file, pn int) {
-	prd := make(popFileList, 0)
-	acm := make(popFileList, 0)
-	for _, f := range files {
-		prd = append(prd, popFile{f, f.popPrd[pn]})
-		acm = append(acm, popFile{f, f.popAcm[pn]})
+func (pl periodList) setPopFiles(files map[string]*file) {
+	for pn, p := range pl {
+		prd := make(popFileList, 0)
+		acm := make(popFileList, 0)
+		for _, f := range files {
+			prd = append(prd, popFile{f, f.popPrd[pn]})
+			acm = append(acm, popFile{f, f.popAcm[pn]})
+		}
+		sort.Sort(prd)
+		sort.Sort(acm)
+		p.popFiles = prd
+		p.popFilesAcm = acm
 	}
-	sort.Sort(prd)
-	sort.Sort(acm)
-	p.popFiles = prd
-	p.popFilesAcm = acm
 }
 
 func (cs *cacheStorage) setPopFiles(pn int) {

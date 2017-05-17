@@ -22,6 +22,8 @@ type popFileList []popFile
 
 type clientList []*client
 
+type periodList []*period
+
 type smallCellList []*smallCell
 
 type file struct {
@@ -87,13 +89,13 @@ func (c *client) assignTo(sc *smallCell) {
 	}
 }
 
-func readRequests(reader io.Reader, duration time.Duration) ([]*period, map[string]*file, map[string]*client) {
+func readRequests(reader io.Reader, duration time.Duration) (periodList, map[string]*file, map[string]*client) {
 	var pend time.Time
 	var p int
 	var f *file
 	var c *client
 	var ok bool
-	periods := make([]*period, 0)
+	periods := make(periodList, 0)
 	files := make(map[string]*file)
 	clients := make(map[string]*client)
 	r := csv.NewReader(reader)
@@ -153,9 +155,7 @@ func readRequests(reader io.Reader, duration time.Duration) ([]*period, map[stri
 		c.popAcm[p][f]++
 		periods[p].pop[f]++
 	}
-	for pn, p := range periods {
-		p.setPopFiles(files, pn)
-	}
+	periods.setPopFiles(files)
 
 	return periods, files, clients
 }
