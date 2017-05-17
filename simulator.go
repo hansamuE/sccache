@@ -122,9 +122,12 @@ func (cs *cacheStorage) cacheFile(f *file, cp cachePolicy) (int, *cache) {
 	return sizeCached, cf
 }
 
-func (p *period) simulate(csl cacheStorageList, scl smallCellList, cp cachePolicy) {
+func (p *period) simulate(csl cacheStorageList, scl smallCellList, cp cachePolicy, fileFilter popFileList) {
 	for _, r := range p.requests {
 		t, f, c := r.time, r.file, r.client
+		if !fileFilter.has(f) {
+			continue
+		}
 		if c.smallCell == nil {
 			csl.assignNewClient(c, f, scl)
 			p.newClients = append(p.newClients, c)
@@ -376,4 +379,16 @@ func (pfl popFileList) Less(i, j int) bool {
 
 func (pfl popFileList) Swap(i, j int) {
 	pfl[i], pfl[j] = pfl[j], pfl[i]
+}
+
+func (pfl popFileList) has(f *file) bool {
+	if pfl == nil {
+		return true
+	}
+	for _, pf := range pfl {
+		if pf.file == f {
+			return true
+		}
+	}
+	return false
 }

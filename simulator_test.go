@@ -14,6 +14,7 @@ var (
 	fl2 fileList
 	csl cacheStorageList
 	stat stats = stats{downloaded: 3, served: 72}
+	pfl popFileList = popFileList{popFile{f1, 10}, popFile{f2, 5}}
 )
 
 func TestCalStat(t *testing.T) {
@@ -79,6 +80,15 @@ func TestCsl_assignNewClient(t *testing.T) {
 }
 
 func TestSimulate(t *testing.T) {
-	p[0].simulate(csl, scl, leastRecentUsed)
-	p[2].simulate(csl, scl, leastFreqUsed)
+	p[0].simulate(csl, scl, leastRecentUsed, nil)
+	p[2].simulate(csl, scl, leastFreqUsed, nil)
+}
+
+func TestPfl_has(t *testing.T) {
+	t.Log(pfl.has(f1))
+	t.Log(pfl[:1].has(f1))
+	t.Log(pfl[:0].has(f1))
+	pfl = nil
+	t.Log(pfl.has(f1))
+	t.Log(pfl[:0].has(f1))
 }
