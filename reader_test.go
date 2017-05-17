@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-var p periodList
+var p []period
 var f map[string]*file
 var c map[string]*client
 var scl smallCellList

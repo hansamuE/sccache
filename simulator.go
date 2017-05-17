@@ -112,8 +112,7 @@ func (cs *cacheStorage) cacheFile(f *file, cp cachePolicy) (int, *cache) {
 	return sizeCached, cf
 }
 
-func (pl periodList) simulate(pn int, csl cacheStorageList, scl smallCellList, cp cachePolicy) {
-	p := pl[pn]
+func (p period) simulate(csl cacheStorageList, scl smallCellList, cp cachePolicy) {
 	for _, r := range p.requests {
 		t, f, c := r.time, r.file, r.client
 		if c.smallCell == nil {
