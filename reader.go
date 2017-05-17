@@ -35,6 +35,7 @@ type request struct {
 }
 
 type period struct {
+	id int
 	end      time.Time
 	requests []request
 	pop      filePop
@@ -106,14 +107,14 @@ func readRequests(reader io.Reader, duration time.Duration) ([]period, map[strin
 		}
 		t := time.Unix(ti, 0)
 		if pend.IsZero() {
-			pend = t.Round(duration)
-			periods = append(periods, period{end: pend, requests: make([]request, 0), pop: make(filePop)})
 			p = 0
+			pend = t.Round(duration)
+			periods = append(periods, period{id: p, end: pend, requests: make([]request, 0), pop: make(filePop)})
 		} else {
 			for t.After(pend) {
+				p = len(periods)
 				pend = pend.Add(duration)
-				periods = append(periods, period{end: pend, requests: make([]request, 0), pop: make(filePop)})
-				p = len(periods) - 1
+				periods = append(periods, period{id: p, end: pend, requests: make([]request, 0), pop: make(filePop)})
 			}
 		}
 		periods[p].requests = append(periods[p].requests, request{t, f, c})

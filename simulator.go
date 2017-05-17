@@ -1,6 +1,10 @@
 package sccache
 
-import "math"
+import (
+	"math"
+	"time"
+	"sort"
+)
 
 type simFormula func(filePopNorm, filePopNorm) float64
 
@@ -9,6 +13,48 @@ type cacheStorageList []*cacheStorage
 type cacheStorage struct {
 	smallCells smallCellList
 	popAcm []filePop
+	caches []cache
+}
+
+type cache struct {
+	file *file
+	size int
+	lastReq time.Time
+}
+
+//func (p *period) serve() {
+//	for _, r := range p.requests {
+//		t, f, c := r.time, r.file, r.client
+//		if c.smallCell == nil {
+//
+//		}
+//	}
+//}
+
+func (csl cacheStorageList) hasFile(f *file) smallCellList {
+	scl := make(smallCellList, 0)
+	for _, cs := range csl {
+		for _, c := range cs.caches {
+			if c.file == f {
+				scl = append(scl, cs.smallCells...)
+				break
+			}
+		}
+	}
+	sort.Sort(scl)
+	return scl
+}
+
+func (scl smallCellList) Len() int {
+	return len(scl)
+}
+
+func (scl smallCellList) Less(i, j int) bool {
+	return len(scl[i].clients) < len(scl[j].clients)
+}
+
+func (scl smallCellList) Swap(i, j int) {
+	scl[i], scl[j] = scl[j], scl[i]
 }
 
 func (sc *smallCell) assignTo(cs *cacheStorage) {

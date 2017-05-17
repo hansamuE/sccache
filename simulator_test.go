@@ -12,10 +12,12 @@ var (
 	fpn2 filePopNorm = filePopNorm{f1: 0.7, f2: 0.3}
 	fl1 fileList
 	fl2 fileList
+	csl cacheStorageList
 )
 
 func TestArrangeCooperation(t *testing.T) {
-	t.Log(scl.arrangeCooperation(-1, exponential, 2))
+	csl = scl.arrangeCooperation(-1, exponential, 2)
+	t.Log("csl:", csl)
 }
 
 func TestSmallCellList_calSimilarity(t *testing.T) {
@@ -60,4 +62,8 @@ func TestFileList_intersection(t *testing.T) {
 	if len(fl1.intersection(fl2)) != 2 {
 		t.Error("fileList.intersection wrong")
 	}
+}
+
+func TestCsl_hasFile(t *testing.T) {
+	t.Log(csl.hasFile(f1))
 }
