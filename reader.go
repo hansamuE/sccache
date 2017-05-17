@@ -61,8 +61,14 @@ func (c *client) assignTo(sc *smallCell) {
 		for k, v := range fp {
 			if osc != nil {
 				osc.popAcm[p][k] -= v
+				if osc.cacheStorage != nil {
+					osc.cacheStorage.popAcm[p][k] -= v
+				}
 			}
 			sc.popAcm[p][k] += v
+			if sc.cacheStorage != nil {
+				sc.cacheStorage.popAcm[p][k] += v
+			}
 		}
 	}
 }
