@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-var p []period
+var p []*period
 var f map[string]*file
 var c map[string]*client
 var scl smallCellList
@@ -47,6 +47,7 @@ func TestReadRequests(t *testing.T) {
 	t.Log("periods:", p)
 	t.Log("files:", f)
 	t.Log("clients:", c)
+	t.Log("popFiles:", p[2].popFilesAcm)
 }
 
 func TestReadClientsAssignment(t *testing.T) {

@@ -15,6 +15,7 @@ type cacheStorageList []*cacheStorage
 type cacheStorage struct {
 	smallCells smallCellList
 	popAcm []filePop
+	popFiles []popFileList
 	caches []*cache
 	size int
 	space int
@@ -121,7 +122,7 @@ func (cs *cacheStorage) cacheFile(f *file, cp cachePolicy) (int, *cache) {
 	return sizeCached, cf
 }
 
-func (p period) simulate(csl cacheStorageList, scl smallCellList, cp cachePolicy) {
+func (p *period) simulate(csl cacheStorageList, scl smallCellList, cp cachePolicy) {
 	for _, r := range p.requests {
 		t, f, c := r.time, r.file, r.client
 		if c.smallCell == nil {
@@ -341,4 +342,27 @@ func (fl fileList) intersection(fl2 fileList) fileList {
 		}
 	}
 	return ifl
+}
+
+func (p *period) setPopFiles(files map[string]*file, pn int) {
+	prd := make(popFileList, 0)
+	acm := make(popFileList, 0)
+	for _, f := range files {
+		prd = append(prd, popFile{f, f.popPrd[pn]})
+		acm = append(acm, popFile{f, f.popAcm[pn]})
+	}
+	p.popFiles = prd
+	p.popFilesAcm = acm
+}
+
+func (pfl popFileList) Len() int {
+	return len(pfl)
+}
+
+func (pfl popFileList) Less(i, j int) bool {
+	return pfl[i].pop > pfl[j].pop
+}
+
+func (pfl popFileList) Swap(i, j int) {
+	pfl[i], pfl[j] = pfl[j], pfl[i]
 }

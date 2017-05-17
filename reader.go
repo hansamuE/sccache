@@ -13,6 +13,13 @@ type filePopNorm map[*file]float64
 
 type fileList []*file
 
+type popFile struct {
+	file *file
+	pop int
+}
+
+type popFileList []popFile
+
 type clientList []*client
 
 type smallCellList []*smallCell
@@ -41,6 +48,8 @@ type period struct {
 	end      time.Time
 	requests []request
 	pop      filePop
+	popFiles popFileList
+	popFilesAcm popFileList
 	newClients clientList
 	stats
 }
@@ -78,13 +87,13 @@ func (c *client) assignTo(sc *smallCell) {
 	}
 }
 
-func readRequests(reader io.Reader, duration time.Duration) ([]period, map[string]*file, map[string]*client) {
+func readRequests(reader io.Reader, duration time.Duration) ([]*period, map[string]*file, map[string]*client) {
 	var pend time.Time
 	var p int
 	var f *file
 	var c *client
 	var ok bool
-	periods := make([]period, 0)
+	periods := make([]*period, 0)
 	files := make(map[string]*file)
 	clients := make(map[string]*client)
 	r := csv.NewReader(reader)
@@ -113,12 +122,12 @@ func readRequests(reader io.Reader, duration time.Duration) ([]period, map[strin
 		if pend.IsZero() {
 			p = 0
 			pend = t.Round(duration)
-			periods = append(periods, period{end: pend, requests: make([]request, 0), pop: make(filePop), newClients: make(clientList, 0)})
+			periods = append(periods, &period{end: pend, requests: make([]request, 0), pop: make(filePop), newClients: make(clientList, 0)})
 		} else {
 			for t.After(pend) {
 				p = len(periods)
 				pend = pend.Add(duration)
-				periods = append(periods, period{end: pend, requests: make([]request, 0), pop: make(filePop), newClients: make(clientList, 0)})
+				periods = append(periods, &period{end: pend, requests: make([]request, 0), pop: make(filePop), newClients: make(clientList, 0)})
 			}
 		}
 		periods[p].requests = append(periods[p].requests, request{t, f, c})
@@ -143,6 +152,9 @@ func readRequests(reader io.Reader, duration time.Duration) ([]period, map[strin
 		c.popPrd[p][f]++
 		c.popAcm[p][f]++
 		periods[p].pop[f]++
+	}
+	for pn, p := range periods {
+		p.setPopFiles(files, pn)
 	}
 
 	return periods, files, clients
