@@ -4,6 +4,7 @@ import (
 	"math"
 	"time"
 	"sort"
+	"fmt"
 )
 
 type cachePolicy func([]*cache) []*cache
@@ -153,6 +154,33 @@ func (p *period) simulate(csl cacheStorageList, scl smallCellList, cp cachePolic
 	}
 }
 
+func (p *period) endPeriod(pn int, csl cacheStorageList, scl smallCellList, cp cachePolicy, fn simFormula) {
+	p.calRate()
+	for _, c := range p.newClients {
+		sim := c.calSimilarity(csl, fn, pn)
+		mi, ms := -1, 0.0
+		for i, s := range sim {
+			if s > ms {
+				mi, ms = i, s
+			}
+		}
+		if mi == -1 {
+			c.assignTo(scl.leastClients())
+		} else {
+			c.assignTo(csl[mi].smallCells.leastClients())
+		}
+	}
+	//for _, cs := range csl {
+	//
+	//}
+}
+
+func (pl periodList) postProcess() {
+	for _, p := range pl {
+		fmt.Println(p.end, "\t", p.dlRate)
+	}
+}
+
 func deleteCache(c []*cache, di []int) {
 	for i, v := range di {
 		c = append(c[:v - i], c[v - i + 1:]...)
@@ -283,13 +311,18 @@ func (scl smallCellList) calSimilarity(fn simFormula, pn int) [][]float64 {
 	return s
 }
 
+func (c *client) calSimilarity(csl cacheStorageList, fn simFormula, pn int) []float64 {
+	s := make([]float64, len(csl))
+	for i, cs := range csl {
+		s[i] = c.popAcm[pn].calSimilarity(cs.popAcm[pn], fn, nil)
+	}
+	return s
+}
+
 func (fp filePop) calSimilarity(fp2 filePop, fn simFormula, lfl fileList) float64 {
 	ifl := fp.getFileList()
-	if lfl != nil {
-		ifl = ifl.intersection(lfl)
-	}
-	ifl = ifl.intersection(fp2.getFileList())
-	if ifl == nil {
+	ifl = ifl.intersection(lfl).intersection(fp2.getFileList())
+	if len(ifl) == 0 {
 		return 0
 	}
 	ifp := make(filePop)
@@ -344,6 +377,9 @@ func (fp filePop) getFileList() fileList {
 }
 
 func (fl fileList) intersection(fl2 fileList) fileList {
+	if fl2 == nil {
+		return fl
+	}
 	ifl := make([]*file, 0)
 	for _, f := range fl {
 		for _, f2 := range fl2 {
