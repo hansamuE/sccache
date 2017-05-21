@@ -66,8 +66,8 @@ func TestFilePop_getFileList(t *testing.T) {
 }
 
 func TestFileList_intersection(t *testing.T) {
-	if len(fl1.intersection(fl2)) != 2 {
-		t.Error("fileList.intersection wrong")
+	if len(fl1.intersect(fl2)) != 2 {
+		t.Error("fileList.intersect wrong")
 	}
 }
 

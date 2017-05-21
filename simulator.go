@@ -50,42 +50,22 @@ func (pl periodList) calRate() float64 {
 	return float64(dl) / float64(dl + sv)
 }
 
-func leastFreqUsed(cl []*cache) []*cache {
-	sort.Sort(cacheListFreq(cl))
-	return cl
-}
-
 type cacheListFreq []*cache
 
-func (cl cacheListFreq) Len() int {
-	return len(cl)
-}
-
-func (cl cacheListFreq) Less(i, j int) bool {
-	return cl[i].count < cl[j].count
-}
-
-func (cl cacheListFreq) Swap(i, j int) {
-	cl[i], cl[j] = cl[j], cl[i]
-}
-
-func leastRecentUsed(cl []*cache) []*cache {
-	sort.Sort(cacheListRecent(cl))
+func leastFreqUsed(cl []*cache) []*cache {
+	sort.Slice(cl, func(i, j int) bool {
+		return cl[i].count < cl[j].count
+	})
 	return cl
 }
 
 type cacheListRecent []*cache
 
-func (cl cacheListRecent) Len() int {
-	return len(cl)
-}
-
-func (cl cacheListRecent) Less(i, j int) bool {
-	return cl[i].lastReq.Before(cl[j].lastReq)
-}
-
-func (cl cacheListRecent) Swap(i, j int) {
-	cl[i], cl[j] = cl[j], cl[i]
+func leastRecentUsed(cl []*cache) []*cache {
+	sort.Slice(cl, func(i, j int) bool {
+		return cl[i].lastReq.Before(cl[j].lastReq)
+	})
+	return cl
 }
 
 func (cs *cacheStorage) cacheFile(f *file, cp cachePolicy) (int, *cache) {
@@ -321,7 +301,7 @@ func (c *client) calSimilarity(csl cacheStorageList, fn simFormula, pn int) []fl
 
 func (fp filePop) calSimilarity(fp2 filePop, fn simFormula, lfl fileList) float64 {
 	ifl := fp.getFileList()
-	ifl = ifl.intersection(lfl).intersection(fp2.getFileList())
+	ifl = ifl.intersect(lfl).intersect(fp2.getFileList())
 	if len(ifl) == 0 {
 		return 0
 	}
@@ -376,7 +356,7 @@ func (fp filePop) getFileList() fileList {
 	return fl
 }
 
-func (fl fileList) intersection(fl2 fileList) fileList {
+func (fl fileList) intersect(fl2 fileList) fileList {
 	if fl2 == nil {
 		return fl
 	}
