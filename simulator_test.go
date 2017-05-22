@@ -23,12 +23,12 @@ func TestCalStat(t *testing.T) {
 }
 
 func TestArrangeCooperation(t *testing.T) {
-	csl = scl.arrangeCooperation(-1, exponential, 2)
+	csl = smallCells.arrangeCooperation(-1, exponential)
 	t.Log("cacheStorages:", csl)
 }
 
 func TestSmallCellList_calSimilarity(t *testing.T) {
-	t.Log("scl.calSimilarity:", scl.calSimilarity(exponential, 2))
+	t.Log("scl.calSimilarity:", smallCells.calSimilarity(exponential))
 }
 
 func TestFilePop_calSimilarity(t *testing.T) {
@@ -76,12 +76,12 @@ func TestCsl_hasFile(t *testing.T) {
 }
 
 func TestCsl_assignNewClient(t *testing.T) {
-	csl.assignNewClient(c["1"], f1)
+	csl.assignNewClient(clients["1"], f1)
 }
 
 func TestSimulate(t *testing.T) {
-	p[0].serve(leastRecentUsed, nil)
-	p[2].serve(leastFreqUsed, nil)
+	periods[0].serve(leastRecentUsed, nil)
+	periods[2].serve(leastFreqUsed, nil)
 }
 
 func TestPfl_has(t *testing.T) {

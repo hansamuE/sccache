@@ -1,10 +1,10 @@
 package sccache
 
 import (
-	"time"
 	"encoding/csv"
 	"io"
 	"strconv"
+	"time"
 )
 
 type filePop map[*file]int
@@ -15,7 +15,7 @@ type fileList []*file
 
 type popFile struct {
 	file *file
-	pop int
+	pop  int
 }
 
 type popFileList []popFile
@@ -27,8 +27,8 @@ type periodList []*period
 type smallCellList []*smallCell
 
 type file struct {
-	id string
-	size int
+	id     string
+	size   int
 	popPrd []int
 	popAcm []int
 }
@@ -36,8 +36,8 @@ type file struct {
 type client struct {
 	id        string
 	smallCell *smallCell
-	popPrd []filePop
-	popAcm []filePop
+	popPrd    []filePop
+	popAcm    []filePop
 }
 
 type request struct {
@@ -47,26 +47,27 @@ type request struct {
 }
 
 type period struct {
-	end      time.Time
-	requests []request
-	pop      filePop
-	popFiles popFileList
+	id          int
+	end         time.Time
+	requests    []request
+	pop         filePop
+	popFiles    popFileList
 	popFilesAcm popFileList
-	newClients clientList
+	newClients  clientList
 	stats
 }
 
 type smallCell struct {
-	clients map[string]*client
-	popAcm []filePop
+	clients      map[string]*client
+	popAcm       []filePop
 	cacheStorage *cacheStorage
 }
 
 var (
-	periods	periodList
-	files	map[string]*file
-	clients	map[string]*client
-	smallCells	smallCellList
+	periods    periodList
+	files      map[string]*file
+	clients    map[string]*client
+	smallCells smallCellList
 )
 
 func (c *client) assignTo(sc *smallCell) {
@@ -78,7 +79,7 @@ func (c *client) assignTo(sc *smallCell) {
 	c.smallCell = sc
 
 	for p, fp := range c.popAcm {
-		if len(sc.popAcm) - 1 < p {
+		if len(sc.popAcm)-1 < p {
 			sc.popAcm = append(sc.popAcm, make(filePop))
 		}
 		for k, v := range fp {
@@ -96,7 +97,7 @@ func (c *client) assignTo(sc *smallCell) {
 	}
 }
 
-func readRequests(reader io.Reader, duration time.Duration) (periodList, map[string]*file, map[string]*client) {
+func readRequests(reader io.Reader, duration time.Duration) {
 	var pend time.Time
 	var p int
 	var f *file
@@ -131,28 +132,28 @@ func readRequests(reader io.Reader, duration time.Duration) (periodList, map[str
 		if pend.IsZero() {
 			p = 0
 			pend = t.Round(duration)
-			periods = append(periods, &period{end: pend, requests: make([]request, 0), pop: make(filePop), newClients: make(clientList, 0)})
+			periods = append(periods, &period{id: p, end: pend, requests: make([]request, 0), pop: make(filePop), newClients: make(clientList, 0)})
 		} else {
 			for t.After(pend) {
 				p = len(periods)
 				pend = pend.Add(duration)
-				periods = append(periods, &period{end: pend, requests: make([]request, 0), pop: make(filePop), newClients: make(clientList, 0)})
+				periods = append(periods, &period{id: p, end: pend, requests: make([]request, 0), pop: make(filePop), newClients: make(clientList, 0)})
 			}
 		}
 		periods[p].requests = append(periods[p].requests, request{t, f, c})
 
 		for _, fp := range files {
-			for len(fp.popPrd) - 1 < p {
+			for len(fp.popPrd)-1 < p {
 				fp.popPrd = append(fp.popPrd, 0)
-				fp.popAcm = append(fp.popAcm, fp.popAcm[len(fp.popAcm) - 1])
+				fp.popAcm = append(fp.popAcm, fp.popAcm[len(fp.popAcm)-1])
 			}
 		}
 		for _, cp := range clients {
-			for len(cp.popPrd) - 1 < p {
+			for len(cp.popPrd)-1 < p {
 				cp.popPrd = append(cp.popPrd, make(filePop))
 				cp.popAcm = append(cp.popAcm, make(filePop))
-				for k, v := range cp.popAcm[len(cp.popAcm) - 2] {
-					cp.popAcm[len(cp.popAcm) - 1][k] = v
+				for k, v := range cp.popAcm[len(cp.popAcm)-2] {
+					cp.popAcm[len(cp.popAcm)-1][k] = v
 				}
 			}
 		}
@@ -163,11 +164,9 @@ func readRequests(reader io.Reader, duration time.Duration) (periodList, map[str
 		periods[p].pop[f]++
 	}
 	periods.setPopFiles(files)
-
-	return periods, files, clients
 }
 
-func readClientsAssignment(reader io.Reader, clients map[string]*client) smallCellList {
+func readClientsAssignment(reader io.Reader) {
 	smallCells = make(smallCellList, 0)
 	r := csv.NewReader(reader)
 	r.Comma = '\t'
@@ -181,10 +180,8 @@ func readClientsAssignment(reader io.Reader, clients map[string]*client) smallCe
 		}
 
 		smallCells = append(smallCells, &smallCell{clients: make(map[string]*client), popAcm: []filePop{make(filePop)}})
-		for _, cid := range rec{
-			clients[cid].assignTo(smallCells[len(smallCells) - 1])
+		for _, cid := range rec {
+			clients[cid].assignTo(smallCells[len(smallCells)-1])
 		}
 	}
-
-	return smallCells
 }

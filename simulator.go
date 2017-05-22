@@ -66,10 +66,8 @@ func leastRecentUsed(cl []*cache) []*cache {
 
 var (
 	cacheStorages cacheStorageList
+	periodNo	int
 )
-
-func init() {
-}
 
 func (cs *cacheStorage) cacheFile(f *file, cp cachePolicy) (int, *cache) {
 	sizeNotCached := f.size
@@ -116,6 +114,7 @@ func (cs *cacheStorage) cacheFile(f *file, cp cachePolicy) (int, *cache) {
 }
 
 func (p *period) serve(cp cachePolicy, fileFilter popFileList) {
+	periodNo = p.id
 	for _, r := range p.requests {
 		t, f, c := r.time, r.file, r.client
 		if !fileFilter.has(f) {
@@ -137,10 +136,10 @@ func (p *period) serve(cp cachePolicy, fileFilter popFileList) {
 	}
 }
 
-func (p *period) endPeriod(pn int, cp cachePolicy, fn simFormula) {
+func (p *period) endPeriod(cp cachePolicy, fn simFormula) {
 	p.calRate()
 	for _, c := range p.newClients {
-		sim := c.calSimilarity(fn, pn)
+		sim := c.calSimilarity(fn)
 		mi, ms := -1, 0.0
 		for i, s := range sim {
 			if s > ms {
@@ -243,7 +242,7 @@ func (sc *smallCell) assignTo(cs *cacheStorage) {
 	}
 }
 
-func (scl smallCellList) arrangeCooperation(threshold float64, fn simFormula, pn int) cacheStorageList {
+func (scl smallCellList) arrangeCooperation(threshold float64, fn simFormula) cacheStorageList {
 	group := make([]smallCellList, 0)
 	if threshold < 0 {
 		for _, sc := range scl {
@@ -251,7 +250,7 @@ func (scl smallCellList) arrangeCooperation(threshold float64, fn simFormula, pn
 		}
 	} else {
 		ok := make([]bool, len(scl))
-		sim := scl.calSimilarity(fn, pn)
+		sim := scl.calSimilarity(fn)
 		for i := 0; i < len(scl)-1; i++ {
 			if ok[i] {
 				continue
@@ -281,24 +280,24 @@ func (scl smallCellList) arrangeCooperation(threshold float64, fn simFormula, pn
 	return cacheStorages
 }
 
-func (scl smallCellList) calSimilarity(fn simFormula, pn int) [][]float64 {
+func (scl smallCellList) calSimilarity(fn simFormula) [][]float64 {
 	s := make([][]float64, len(scl))
 	for i := range s {
 		s[i] = make([]float64, len(scl))
 	}
 	for i, sc := range scl {
 		for j := i + 1; j < len(scl); j++ {
-			s[i][j] = sc.popAcm[pn].calSimilarity(scl[j].popAcm[pn], fn, nil)
+			s[i][j] = sc.popAcm[periodNo].calSimilarity(scl[j].popAcm[periodNo], fn, nil)
 			s[j][i] = s[i][j]
 		}
 	}
 	return s
 }
 
-func (c *client) calSimilarity(fn simFormula, pn int) []float64 {
+func (c *client) calSimilarity(fn simFormula) []float64 {
 	s := make([]float64, len(cacheStorages))
 	for i, cs := range cacheStorages {
-		s[i] = c.popAcm[pn].calSimilarity(cs.popAcm[pn], fn, nil)
+		s[i] = c.popAcm[periodNo].calSimilarity(cs.popAcm[periodNo], fn, nil)
 	}
 	return s
 }
