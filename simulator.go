@@ -9,7 +9,7 @@ import (
 
 type cachePolicy func([]*cache) []*cache
 
-type simFormula func(filePopNorm, filePopNorm) float64
+type similarityFormula func(filePopNorm, filePopNorm) float64
 
 type cacheStorageList []*cacheStorage
 
@@ -113,6 +113,36 @@ func (cs *cacheStorage) cacheFile(f *file, cp cachePolicy) (int, *cache) {
 	return sizeCached, cf
 }
 
+func Simulate() {
+	//readConfigs()
+	for _, c := range Configs {
+		fmt.Println("Read Requests...")
+		//	readRequests(, c.PeriodDuration)
+		if !c.IsTrained {
+			fmt.Println("Done Training")
+		} else {
+			//	readClientsAssignment()
+		}
+		preProcess(c)
+		var pl periodList = periods[c.TestStartPeriod:]
+		pl.serve(c)
+		pl.postProcess()
+	}
+}
+
+func preProcess(config Config) {
+	smallCells.arrangeCooperation(config.CooperationThreshold, config.SimilarityFormula)
+}
+
+func (pl periodList) serve(config Config) {
+	fmt.Println("Start Testing With Config:", config)
+	for _, p := range pl {
+		p.serve(config.CachePolicy, p.popFiles[:config.FilesLimit])
+		p.endPeriod(config.CachePolicy, config.SimilarityFormula)
+	}
+	fmt.Println("All Periods Are Tested")
+}
+
 func (p *period) serve(cp cachePolicy, fileFilter popFileList) {
 	periodNo = p.id
 	for _, r := range p.requests {
@@ -136,7 +166,7 @@ func (p *period) serve(cp cachePolicy, fileFilter popFileList) {
 	}
 }
 
-func (p *period) endPeriod(cp cachePolicy, fn simFormula) {
+func (p *period) endPeriod(cp cachePolicy, fn similarityFormula) {
 	p.calRate()
 	for _, c := range p.newClients {
 		sim := c.calSimilarity(fn)
@@ -152,9 +182,7 @@ func (p *period) endPeriod(cp cachePolicy, fn simFormula) {
 			c.assignTo(cacheStorages[mi].smallCells.leastClients())
 		}
 	}
-	//for _, cs := range cacheStorages {
-	//
-	//}
+	fmt.Println("End Period:", p.end)
 }
 
 func (pl periodList) postProcess() {
@@ -242,7 +270,7 @@ func (sc *smallCell) assignTo(cs *cacheStorage) {
 	}
 }
 
-func (scl smallCellList) arrangeCooperation(threshold float64, fn simFormula) cacheStorageList {
+func (scl smallCellList) arrangeCooperation(threshold float64, fn similarityFormula) cacheStorageList {
 	group := make([]smallCellList, 0)
 	if threshold < 0 {
 		for _, sc := range scl {
@@ -280,7 +308,7 @@ func (scl smallCellList) arrangeCooperation(threshold float64, fn simFormula) ca
 	return cacheStorages
 }
 
-func (scl smallCellList) calSimilarity(fn simFormula) [][]float64 {
+func (scl smallCellList) calSimilarity(fn similarityFormula) [][]float64 {
 	s := make([][]float64, len(scl))
 	for i := range s {
 		s[i] = make([]float64, len(scl))
@@ -294,7 +322,7 @@ func (scl smallCellList) calSimilarity(fn simFormula) [][]float64 {
 	return s
 }
 
-func (c *client) calSimilarity(fn simFormula) []float64 {
+func (c *client) calSimilarity(fn similarityFormula) []float64 {
 	s := make([]float64, len(cacheStorages))
 	for i, cs := range cacheStorages {
 		s[i] = c.popAcm[periodNo].calSimilarity(cs.popAcm[periodNo], fn, nil)
@@ -302,7 +330,7 @@ func (c *client) calSimilarity(fn simFormula) []float64 {
 	return s
 }
 
-func (fp filePop) calSimilarity(fp2 filePop, fn simFormula, lfl fileList) float64 {
+func (fp filePop) calSimilarity(fp2 filePop, fn similarityFormula, lfl fileList) float64 {
 	ifl := fp.getFileList()
 	ifl = ifl.intersect(lfl).intersect(fp2.getFileList())
 	if len(ifl) == 0 {

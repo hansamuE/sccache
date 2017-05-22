@@ -63,11 +63,22 @@ type smallCell struct {
 	cacheStorage *cacheStorage
 }
 
+type Config struct {
+	IsTrained            bool
+	PeriodDuration       time.Duration
+	CooperationThreshold float64
+	TestStartPeriod      int
+	CachePolicy          cachePolicy
+	SimilarityFormula    similarityFormula
+	FilesLimit           int
+}
+
 var (
 	periods    periodList
 	files      map[string]*file
 	clients    map[string]*client
 	smallCells smallCellList
+	Configs	[]Config
 )
 
 func (c *client) assignTo(sc *smallCell) {
