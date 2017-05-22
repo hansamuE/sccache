@@ -1,20 +1,20 @@
-package sccache
+package simulator
 
 import "testing"
 
 var (
-	f1 *file = new(file)
-	f2 *file = new(file)
-	f3 *file = new(file)
-	fp1 filePop = filePop{f1: 1, f2: 2, f3: 3}
-	fp2 filePop = filePop{f2: 5, f3: 4}
+	f1   *file       = new(file)
+	f2   *file       = new(file)
+	f3   *file       = new(file)
+	fp1  filePop     = filePop{f1: 1, f2: 2, f3: 3}
+	fp2  filePop     = filePop{f2: 5, f3: 4}
 	fpn1 filePopNorm = filePopNorm{f1: 0.1, f2: 0.9}
 	fpn2 filePopNorm = filePopNorm{f1: 0.7, f2: 0.3}
-	fl1 fileList
-	fl2 fileList
-	csl cacheStorageList
-	stat stats = stats{downloaded: 3, served: 72}
-	pfl popFileList = popFileList{popFile{f1, 10}, popFile{f2, 5}}
+	fl1  fileList
+	fl2  fileList
+	csl  cacheStorageList
+	stat stats       = stats{downloaded: 3, served: 72}
+	pfl  popFileList = popFileList{popFile{f1, 10}, popFile{f2, 5}}
 )
 
 func TestCalStat(t *testing.T) {

@@ -1,4 +1,4 @@
-package sccache
+package simulator
 
 import (
 	"encoding/csv"

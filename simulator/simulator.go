@@ -1,11 +1,11 @@
-package sccache
+package simulator
 
 import (
 	"fmt"
 	"math"
+	"os"
 	"sort"
 	"time"
-	"os"
 )
 
 type cachePolicy func([]*cache) []*cache
@@ -67,7 +67,7 @@ func leastRecentUsed(cl []*cache) []*cache {
 
 var (
 	cacheStorages cacheStorageList
-	periodNo	int
+	periodNo      int
 )
 
 func (cs *cacheStorage) cacheFile(f *file, cp cachePolicy) (int, *cache) {
@@ -126,7 +126,7 @@ func Simulate() {
 			panic(err)
 		}
 		fmt.Println("Read Requests...")
-			readRequests(f, c.PeriodDuration)
+		readRequests(f, c.PeriodDuration)
 		if !c.IsTrained {
 			fmt.Println("Done Training")
 		} else {
