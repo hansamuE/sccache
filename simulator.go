@@ -5,6 +5,7 @@ import (
 	"math"
 	"sort"
 	"time"
+	"os"
 )
 
 type cachePolicy func([]*cache) []*cache
@@ -114,14 +115,26 @@ func (cs *cacheStorage) cacheFile(f *file, cp cachePolicy) (int, *cache) {
 }
 
 func Simulate() {
-	//readConfigs()
+	f, err := os.Open("configs.json")
+	if err != nil {
+		panic(err)
+	}
+	readConfigs(f)
 	for _, c := range Configs {
+		f, err := os.Open("requests.csv")
+		if err != nil {
+			panic(err)
+		}
 		fmt.Println("Read Requests...")
-		//	readRequests(, c.PeriodDuration)
+			readRequests(f, c.PeriodDuration)
 		if !c.IsTrained {
 			fmt.Println("Done Training")
 		} else {
-			//	readClientsAssignment()
+			f, err := os.Open("clusters.csv")
+			if err != nil {
+				panic(err)
+			}
+			readClientsAssignment(f)
 		}
 		preProcess(c)
 		var pl periodList = periods[c.TestStartPeriod:]
@@ -132,6 +145,12 @@ func Simulate() {
 
 func preProcess(config Config) {
 	smallCells.arrangeCooperation(config.CooperationThreshold, config.SimilarityFormula)
+	for _, f := range files {
+		f.size = config.FileSize
+	}
+	for _, cs := range cacheStorages {
+		cs.size = config.CacheStorageSize
+	}
 }
 
 func (pl periodList) serve(config Config) {
