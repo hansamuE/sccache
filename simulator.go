@@ -1,10 +1,10 @@
 package sccache
 
 import (
-	"math"
-	"time"
-	"sort"
 	"fmt"
+	"math"
+	"sort"
+	"time"
 )
 
 type cachePolicy func([]*cache) []*cache
@@ -15,30 +15,30 @@ type cacheStorageList []*cacheStorage
 
 type cacheStorage struct {
 	smallCells smallCellList
-	popAcm []filePop
-	popFiles []popFileList
-	caches []*cache
-	size int
-	space int
+	popAcm     []filePop
+	popFiles   []popFileList
+	caches     []*cache
+	size       int
+	space      int
 	stats
 }
 
 type cache struct {
-	file *file
-	size int
-	fixed bool
-	count int
+	file    *file
+	size    int
+	fixed   bool
+	count   int
 	lastReq time.Time
 }
 
 type stats struct {
 	downloaded int
-	served int
-	dlRate float64
+	served     int
+	dlRate     float64
 }
 
 func (s *stats) calRate() {
-	s.dlRate = float64(s.downloaded) / float64(s.downloaded + s.served)
+	s.dlRate = float64(s.downloaded) / float64(s.downloaded+s.served)
 }
 
 func (pl periodList) calRate() float64 {
@@ -47,25 +47,28 @@ func (pl periodList) calRate() float64 {
 		dl += p.downloaded
 		sv += p.served
 	}
-	return float64(dl) / float64(dl + sv)
+	return float64(dl) / float64(dl+sv)
 }
 
 type cacheListFreq []*cache
 
 func leastFreqUsed(cl []*cache) []*cache {
-	sort.Slice(cl, func(i, j int) bool {
-		return cl[i].count < cl[j].count
-	})
+	sort.Slice(cl, func(i, j int) bool { return cl[i].count < cl[j].count })
 	return cl
 }
 
 type cacheListRecent []*cache
 
 func leastRecentUsed(cl []*cache) []*cache {
-	sort.Slice(cl, func(i, j int) bool {
-		return cl[i].lastReq.Before(cl[j].lastReq)
-	})
+	sort.Slice(cl, func(i, j int) bool { return cl[i].lastReq.Before(cl[j].lastReq) })
 	return cl
+}
+
+var (
+	cacheStorages cacheStorageList
+)
+
+func init() {
 }
 
 func (cs *cacheStorage) cacheFile(f *file, cp cachePolicy) (int, *cache) {
@@ -102,7 +105,7 @@ func (cs *cacheStorage) cacheFile(f *file, cp cachePolicy) (int, *cache) {
 				}
 				di = append(di, i)
 			}
-			deleteCache(cl, di)
+			cs.deleteCache(di)
 		}
 		cf.size = f.size - sizeNotCached
 		if cf.size != 0 {
@@ -112,14 +115,14 @@ func (cs *cacheStorage) cacheFile(f *file, cp cachePolicy) (int, *cache) {
 	return sizeCached, cf
 }
 
-func (p *period) simulate(csl cacheStorageList, scl smallCellList, cp cachePolicy, fileFilter popFileList) {
+func (p *period) serve(cp cachePolicy, fileFilter popFileList) {
 	for _, r := range p.requests {
 		t, f, c := r.time, r.file, r.client
 		if !fileFilter.has(f) {
 			continue
 		}
 		if c.smallCell == nil {
-			csl.assignNewClient(c, f, scl)
+			cacheStorages.assignNewClient(c, f)
 			p.newClients = append(p.newClients, c)
 		}
 
@@ -134,10 +137,10 @@ func (p *period) simulate(csl cacheStorageList, scl smallCellList, cp cachePolic
 	}
 }
 
-func (p *period) endPeriod(pn int, csl cacheStorageList, scl smallCellList, cp cachePolicy, fn simFormula) {
+func (p *period) endPeriod(pn int, cp cachePolicy, fn simFormula) {
 	p.calRate()
 	for _, c := range p.newClients {
-		sim := c.calSimilarity(csl, fn, pn)
+		sim := c.calSimilarity(fn, pn)
 		mi, ms := -1, 0.0
 		for i, s := range sim {
 			if s > ms {
@@ -145,12 +148,12 @@ func (p *period) endPeriod(pn int, csl cacheStorageList, scl smallCellList, cp c
 			}
 		}
 		if mi == -1 {
-			c.assignTo(scl.leastClients())
+			c.assignTo(smallCells.leastClients())
 		} else {
-			c.assignTo(csl[mi].smallCells.leastClients())
+			c.assignTo(cacheStorages[mi].smallCells.leastClients())
 		}
 	}
-	//for _, cs := range csl {
+	//for _, cs := range cacheStorages {
 	//
 	//}
 }
@@ -161,18 +164,19 @@ func (pl periodList) postProcess() {
 	}
 }
 
-func deleteCache(c []*cache, di []int) {
+func (cs *cacheStorage) deleteCache(di []int) {
+	c := cs.caches
 	for i, v := range di {
-		c = append(c[:v - i], c[v - i + 1:]...)
+		c = append(c[:v-i], c[v-i+1:]...)
 	}
 }
 
-func (csl cacheStorageList) assignNewClient(c *client, f *file, scl smallCellList) {
+func (csl cacheStorageList) assignNewClient(c *client, f *file) {
 	sclf := csl.smallCellsHasFile(f)
 	if len(sclf) != 0 {
 		c.assignTo(sclf.leastClients())
 	} else {
-		c.assignTo(scl.leastClients())
+		c.assignTo(smallCells.leastClients())
 	}
 }
 
@@ -219,7 +223,7 @@ func (sc *smallCell) assignTo(cs *cacheStorage) {
 		scl := ocs.smallCells
 		for i := range scl {
 			if scl[i] == sc {
-				scl = append(scl[:i], scl[i + 1:]...)
+				scl = append(scl[:i], scl[i+1:]...)
 			}
 		}
 	}
@@ -227,7 +231,7 @@ func (sc *smallCell) assignTo(cs *cacheStorage) {
 	sc.cacheStorage = cs
 
 	for pn, fp := range sc.popAcm {
-		if len(cs.popAcm) - 1 < pn {
+		if len(cs.popAcm)-1 < pn {
 			cs.popAcm = append(cs.popAcm, make(filePop))
 		}
 		for k, v := range fp {
@@ -248,7 +252,7 @@ func (scl smallCellList) arrangeCooperation(threshold float64, fn simFormula, pn
 	} else {
 		ok := make([]bool, len(scl))
 		sim := scl.calSimilarity(fn, pn)
-		for i := 0; i < len(scl) - 1; i++ {
+		for i := 0; i < len(scl)-1; i++ {
 			if ok[i] {
 				continue
 			}
@@ -259,22 +263,22 @@ func (scl smallCellList) arrangeCooperation(threshold float64, fn simFormula, pn
 					continue
 				}
 				if sim[i][j] >= threshold {
-					group[len(group) - 1] = append(group[len(group) - 1], scl[j])
+					group[len(group)-1] = append(group[len(group)-1], scl[j])
 					ok[j] = true
 				}
 			}
 		}
 	}
 
-	csl := make(cacheStorageList, len(group))
+	cacheStorages = make(cacheStorageList, len(group))
 	for i, g := range group {
-		csl[i] = &cacheStorage{smallCells: make(smallCellList, 0)}
+		cacheStorages[i] = &cacheStorage{smallCells: make(smallCellList, 0)}
 		for _, sc := range g {
-			sc.assignTo(csl[i])
+			sc.assignTo(cacheStorages[i])
 		}
 	}
 
-	return csl
+	return cacheStorages
 }
 
 func (scl smallCellList) calSimilarity(fn simFormula, pn int) [][]float64 {
@@ -291,9 +295,9 @@ func (scl smallCellList) calSimilarity(fn simFormula, pn int) [][]float64 {
 	return s
 }
 
-func (c *client) calSimilarity(csl cacheStorageList, fn simFormula, pn int) []float64 {
-	s := make([]float64, len(csl))
-	for i, cs := range csl {
+func (c *client) calSimilarity(fn simFormula, pn int) []float64 {
+	s := make([]float64, len(cacheStorages))
+	for i, cs := range cacheStorages {
 		s[i] = c.popAcm[pn].calSimilarity(cs.popAcm[pn], fn, nil)
 	}
 	return s

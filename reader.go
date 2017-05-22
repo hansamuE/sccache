@@ -62,6 +62,13 @@ type smallCell struct {
 	cacheStorage *cacheStorage
 }
 
+var (
+	periods	periodList
+	files	map[string]*file
+	clients	map[string]*client
+	smallCells	smallCellList
+)
+
 func (c *client) assignTo(sc *smallCell) {
 	osc := c.smallCell
 	if osc != nil {
@@ -95,9 +102,9 @@ func readRequests(reader io.Reader, duration time.Duration) (periodList, map[str
 	var f *file
 	var c *client
 	var ok bool
-	periods := make(periodList, 0)
-	files := make(map[string]*file)
-	clients := make(map[string]*client)
+	periods = make(periodList, 0)
+	files = make(map[string]*file)
+	clients = make(map[string]*client)
 	r := csv.NewReader(reader)
 	r.Comma = '\t'
 	for {
@@ -161,7 +168,7 @@ func readRequests(reader io.Reader, duration time.Duration) (periodList, map[str
 }
 
 func readClientsAssignment(reader io.Reader, clients map[string]*client) smallCellList {
-	smallCells := make(smallCellList, 0)
+	smallCells = make(smallCellList, 0)
 	r := csv.NewReader(reader)
 	r.Comma = '\t'
 	r.FieldsPerRecord = -1
