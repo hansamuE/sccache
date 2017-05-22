@@ -2,6 +2,7 @@ package sccache
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"io"
 	"strconv"
 	"time"
@@ -63,6 +64,10 @@ type smallCell struct {
 	cacheStorage *cacheStorage
 }
 
+type ConfigList []Config
+
+type ConfigJSONList []ConfigJSON
+
 type Config struct {
 	IsTrained            bool
 	PeriodDuration       time.Duration
@@ -71,6 +76,20 @@ type Config struct {
 	CachePolicy          cachePolicy
 	SimilarityFormula    similarityFormula
 	FilesLimit           int
+	FileSize             int
+	CacheStorageSize     int
+}
+
+type ConfigJSON struct {
+	IsTrained            bool    `json:"is_trained"`
+	PeriodDuration       string  `json:"period_duration"`
+	CooperationThreshold float64 `json:"cooperation_threshold"`
+	TestStartPeriod      int     `json:"test_start_period"`
+	CachePolicy          string  `json:"cache_policy"`
+	SimilarityFormula    string  `json:"similarity_formula"`
+	FilesLimit           int     `json:"files_limit"`
+	FileSize             int     `json:"file_size"`
+	CacheStorageSize     int     `json:"cache_storage_size"`
 }
 
 var (
@@ -78,7 +97,7 @@ var (
 	files      map[string]*file
 	clients    map[string]*client
 	smallCells smallCellList
-	Configs	[]Config
+	Configs    []Config
 )
 
 func (c *client) assignTo(sc *smallCell) {
@@ -195,4 +214,49 @@ func readClientsAssignment(reader io.Reader) {
 			clients[cid].assignTo(smallCells[len(smallCells)-1])
 		}
 	}
+}
+
+func readConfigs(reader io.Reader) {
+	dec := json.NewDecoder(reader)
+	ConfigJSONs := make(ConfigJSONList, 0)
+	for dec.More() {
+		err := dec.Decode(&ConfigJSONs)
+		if err != nil {
+			panic(err)
+		}
+	}
+	Configs = ConfigJSONs.toConfig()
+}
+
+func (cjl ConfigJSONList) toConfig() ConfigList {
+	var err error
+	cl := make(ConfigList, len(cjl))
+	for i, cj := range cjl {
+		cl[i].IsTrained = cj.IsTrained
+		cl[i].PeriodDuration, err = time.ParseDuration(cj.PeriodDuration)
+		if err != nil {
+			panic(err)
+		}
+		cl[i].CooperationThreshold = cj.CooperationThreshold
+		cl[i].TestStartPeriod = cj.TestStartPeriod
+
+		switch cj.CachePolicy {
+		case "leastRecentlyUsed":
+			cl[i].CachePolicy = leastRecentUsed
+		case "leastFrequentlyUsed":
+			cl[i].CachePolicy = leastFreqUsed
+		}
+
+		switch cj.SimilarityFormula {
+		case "exponential":
+			cl[i].SimilarityFormula = exponential
+		case "cosine":
+			cl[i].SimilarityFormula = cosine
+		}
+
+		cl[i].FilesLimit = cj.FilesLimit
+		cl[i].FileSize = cj.FileSize
+		cl[i].CacheStorageSize = cj.CacheStorageSize
+	}
+	return cl
 }
