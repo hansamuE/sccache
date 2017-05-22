@@ -2,35 +2,14 @@ package simulator
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"sort"
-	"time"
 )
 
-type cachePolicy func([]*cache) []*cache
-
-type similarityFormula func(filePopNorm, filePopNorm) float64
-
-type cacheStorageList []*cacheStorage
-
-type cacheStorage struct {
-	smallCells smallCellList
-	popAcm     []filePop
-	popFiles   []popFileList
-	caches     []*cache
-	size       int
-	space      int
-	stats
-}
-
-type cache struct {
-	file    *file
-	size    int
-	fixed   bool
-	count   int
-	lastReq time.Time
-}
+var (
+	cacheStorages cacheStorageList
+	periodNo      int
+)
 
 type stats struct {
 	downloaded int
@@ -51,91 +30,34 @@ func (pl periodList) calRate() float64 {
 	return float64(dl) / float64(dl+sv)
 }
 
-type cacheListFreq []*cache
-
-func leastFreqUsed(cl []*cache) []*cache {
-	sort.Slice(cl, func(i, j int) bool { return cl[i].count < cl[j].count })
-	return cl
-}
-
-type cacheListRecent []*cache
-
-func leastRecentUsed(cl []*cache) []*cache {
-	sort.Slice(cl, func(i, j int) bool { return cl[i].lastReq.Before(cl[j].lastReq) })
-	return cl
-}
-
-var (
-	cacheStorages cacheStorageList
-	periodNo      int
-)
-
-func (cs *cacheStorage) cacheFile(f *file, cp cachePolicy) (int, *cache) {
-	sizeNotCached := f.size
-	ok, cf := cs.hasFile(f)
-	if ok {
-		sizeNotCached -= cf.size
-	} else {
-		cf = &cache{file: f}
-	}
-	sizeCached := cf.size
-	if !ok || cf.size != f.size {
-		cl := cp(cs.caches)
-		if cs.space >= sizeNotCached {
-			cs.space -= sizeNotCached
-			sizeNotCached = 0
-		} else {
-			sizeNotCached -= cs.space
-			cs.space = 0
-			di := make([]int, 0)
-			for i, v := range cl {
-				if v == cf || v.fixed {
-					continue
-				}
-				sizeNotCached -= v.size
-				if sizeNotCached <= 0 {
-					if sizeNotCached == 0 {
-						di = append(di, i)
-					} else {
-						v.size = -sizeNotCached
-						sizeNotCached = 0
-					}
-					break
-				}
-				di = append(di, i)
-			}
-			cs.deleteCache(di)
-		}
-		cf.size = f.size - sizeNotCached
-		if cf.size != 0 {
-			cl = append(cl, cf)
-		}
-	}
-	return sizeCached, cf
-}
-
 func Simulate() {
-	f, err := os.Open("configs.json")
+	configs, err := os.Open("configs.json")
 	if err != nil {
 		panic(err)
 	}
-	readConfigs(f)
+	defer configs.Close()
+	readConfigs(configs)
+
 	for _, c := range Configs {
-		f, err := os.Open("requests.csv")
+		requests, err := os.Open("requests.csv")
 		if err != nil {
 			panic(err)
 		}
+		defer requests.Close()
 		fmt.Println("Read Requests...")
-		readRequests(f, c.PeriodDuration)
+		readRequests(requests, c.PeriodDuration)
+
 		if !c.IsTrained {
 			fmt.Println("Done Training")
-		} else {
-			f, err := os.Open("clusters.csv")
-			if err != nil {
-				panic(err)
-			}
-			readClientsAssignment(f)
 		}
+
+		clusters, err := os.Open("clusters.csv")
+		if err != nil {
+			panic(err)
+		}
+		defer clusters.Close()
+		readClientsAssignment(clusters)
+
 		preProcess(c)
 		var pl periodList = periods[c.TestStartPeriod:]
 		pl.serve(c)
@@ -156,13 +78,13 @@ func preProcess(config Config) {
 func (pl periodList) serve(config Config) {
 	fmt.Println("Start Testing With Config:", config)
 	for _, p := range pl {
-		p.serve(config.CachePolicy, p.popFiles[:config.FilesLimit])
+		p.serve(config.CachePolicy, p.popularFiles[:config.FilesLimit])
 		p.endPeriod(config.CachePolicy, config.SimilarityFormula)
 	}
-	fmt.Println("All Periods Are Tested")
+	fmt.Println("All Periods Tested")
 }
 
-func (p *period) serve(cp cachePolicy, fileFilter popFileList) {
+func (p *period) serve(cp cachePolicy, fileFilter filePopularityList) {
 	periodNo = p.id
 	for _, r := range p.requests {
 		t, f, c := r.time, r.file, r.client
@@ -210,13 +132,6 @@ func (pl periodList) postProcess() {
 	}
 }
 
-func (cs *cacheStorage) deleteCache(di []int) {
-	c := cs.caches
-	for i, v := range di {
-		c = append(c[:v-i], c[v-i+1:]...)
-	}
-}
-
 func (csl cacheStorageList) assignNewClient(c *client, f *file) {
 	sclf := csl.smallCellsHasFile(f)
 	if len(sclf) != 0 {
@@ -226,67 +141,9 @@ func (csl cacheStorageList) assignNewClient(c *client, f *file) {
 	}
 }
 
-func (cs *cacheStorage) hasFile(f *file) (bool, *cache) {
-	for _, c := range cs.caches {
-		if c.file == f {
-			return true, c
-		}
-	}
-	return false, nil
-}
-
-func (csl cacheStorageList) smallCellsHasFile(f *file) smallCellList {
-	scl := make(smallCellList, 0)
-	for _, cs := range csl {
-		if ok, _ := cs.hasFile(f); ok {
-			scl = append(scl, cs.smallCells...)
-			break
-		}
-	}
-	return scl
-}
-
 func (scl smallCellList) leastClients() *smallCell {
-	sort.Sort(scl)
+	sort.Slice(scl, func(i, j int) bool { return len(scl[i].clients) < len(scl[j].clients) })
 	return scl[0]
-}
-
-func (scl smallCellList) Len() int {
-	return len(scl)
-}
-
-func (scl smallCellList) Less(i, j int) bool {
-	return len(scl[i].clients) < len(scl[j].clients)
-}
-
-func (scl smallCellList) Swap(i, j int) {
-	scl[i], scl[j] = scl[j], scl[i]
-}
-
-func (sc *smallCell) assignTo(cs *cacheStorage) {
-	ocs := sc.cacheStorage
-	if ocs != nil {
-		scl := ocs.smallCells
-		for i := range scl {
-			if scl[i] == sc {
-				scl = append(scl[:i], scl[i+1:]...)
-			}
-		}
-	}
-	cs.smallCells = append(cs.smallCells, sc)
-	sc.cacheStorage = cs
-
-	for pn, fp := range sc.popAcm {
-		if len(cs.popAcm)-1 < pn {
-			cs.popAcm = append(cs.popAcm, make(filePop))
-		}
-		for k, v := range fp {
-			if ocs != nil {
-				ocs.popAcm[pn][k] -= v
-			}
-			cs.popAcm[pn][k] += v
-		}
-	}
 }
 
 func (scl smallCellList) arrangeCooperation(threshold float64, fn similarityFormula) cacheStorageList {
@@ -327,145 +184,28 @@ func (scl smallCellList) arrangeCooperation(threshold float64, fn similarityForm
 	return cacheStorages
 }
 
-func (scl smallCellList) calSimilarity(fn similarityFormula) [][]float64 {
-	s := make([][]float64, len(scl))
-	for i := range s {
-		s[i] = make([]float64, len(scl))
-	}
-	for i, sc := range scl {
-		for j := i + 1; j < len(scl); j++ {
-			s[i][j] = sc.popAcm[periodNo].calSimilarity(scl[j].popAcm[periodNo], fn, nil)
-			s[j][i] = s[i][j]
-		}
-	}
-	return s
-}
-
-func (c *client) calSimilarity(fn similarityFormula) []float64 {
-	s := make([]float64, len(cacheStorages))
-	for i, cs := range cacheStorages {
-		s[i] = c.popAcm[periodNo].calSimilarity(cs.popAcm[periodNo], fn, nil)
-	}
-	return s
-}
-
-func (fp filePop) calSimilarity(fp2 filePop, fn similarityFormula, lfl fileList) float64 {
-	ifl := fp.getFileList()
-	ifl = ifl.intersect(lfl).intersect(fp2.getFileList())
-	if len(ifl) == 0 {
-		return 0
-	}
-	ifp := make(filePop)
-	ifp2 := make(filePop)
-	for _, f := range ifl {
-		ifp[f] = fp[f]
-		ifp2[f] = fp2[f]
-	}
-	return fn(ifp.normalize(), ifp2.normalize())
-}
-
-func exponential(fpn1 filePopNorm, fpn2 filePopNorm) float64 {
-	var numerator float64
-	for k, v := range fpn1 {
-		numerator -= v * fpn2[k]
-	}
-	return 1 - math.Exp(numerator)
-}
-
-func cosine(fpn1 filePopNorm, fpn2 filePopNorm) float64 {
-	var a, b, ab float64
-	for k, v := range fpn1 {
-		a += math.Pow(v, 2)
-		b += math.Pow(fpn2[k], 2)
-		ab += v * fpn2[k]
-	}
-	return ab / (math.Sqrt(a) * math.Sqrt(b))
-}
-
-func (fp filePop) sum() (s int) {
-	for _, v := range fp {
-		s += v
-	}
-	return
-}
-
-func (fp filePop) normalize() filePopNorm {
-	fpn := make(filePopNorm)
-	s := fp.sum()
-	for k, v := range fp {
-		fpn[k] = float64(v) / float64(s)
-	}
-	return fpn
-}
-
-func (fp filePop) getFileList() fileList {
-	fl := make([]*file, 0, len(fp))
-	for k := range fp {
-		fl = append(fl, k)
-	}
-	return fl
-}
-
-func (fl fileList) intersect(fl2 fileList) fileList {
-	if fl2 == nil {
-		return fl
-	}
-	ifl := make([]*file, 0)
-	for _, f := range fl {
-		for _, f2 := range fl2 {
-			if f == f2 {
-				ifl = append(ifl, f)
-				break
+func (sc *smallCell) assignTo(cs *cacheStorage) {
+	ocs := sc.cacheStorage
+	if ocs != nil {
+		scl := ocs.smallCells
+		for i := range scl {
+			if scl[i] == sc {
+				scl = append(scl[:i], scl[i+1:]...)
 			}
 		}
 	}
-	return ifl
-}
+	cs.smallCells = append(cs.smallCells, sc)
+	sc.cacheStorage = cs
 
-func (pl periodList) setPopFiles(files map[string]*file) {
-	for pn, p := range pl {
-		prd := make(popFileList, 0)
-		acm := make(popFileList, 0)
-		for _, f := range files {
-			prd = append(prd, popFile{f, f.popPrd[pn]})
-			acm = append(acm, popFile{f, f.popAcm[pn]})
+	for pn, fp := range sc.popularitiesAccumulated {
+		if len(cs.popAcm)-1 < pn {
+			cs.popAcm = append(cs.popAcm, make(popularities))
 		}
-		sort.Sort(prd)
-		sort.Sort(acm)
-		p.popFiles = prd
-		p.popFilesAcm = acm
-	}
-}
-
-func (cs *cacheStorage) setPopFiles(pn int) {
-	pfl := make(popFileList, 0)
-	for f, pop := range cs.popAcm[pn] {
-		pfl = append(pfl, popFile{f, pop})
-	}
-	sort.Sort(pfl)
-	cs.popFiles[pn] = pfl
-}
-
-func (pfl popFileList) Len() int {
-	return len(pfl)
-}
-
-func (pfl popFileList) Less(i, j int) bool {
-	return pfl[i].pop > pfl[j].pop
-}
-
-func (pfl popFileList) Swap(i, j int) {
-	pfl[i], pfl[j] = pfl[j], pfl[i]
-}
-
-func (pfl popFileList) has(f *file) bool {
-	if pfl == nil {
-		return true
-	}
-	for _, pf := range pfl {
-		if pf.file == f {
-			return true
+		for k, v := range fp {
+			if ocs != nil {
+				ocs.popAcm[pn][k] -= v
+			}
+			cs.popAcm[pn][k] += v
 		}
 	}
-	return false
 }

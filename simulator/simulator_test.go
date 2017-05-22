@@ -3,18 +3,8 @@ package simulator
 import "testing"
 
 var (
-	f1   *file       = new(file)
-	f2   *file       = new(file)
-	f3   *file       = new(file)
-	fp1  filePop     = filePop{f1: 1, f2: 2, f3: 3}
-	fp2  filePop     = filePop{f2: 5, f3: 4}
-	fpn1 filePopNorm = filePopNorm{f1: 0.1, f2: 0.9}
-	fpn2 filePopNorm = filePopNorm{f1: 0.7, f2: 0.3}
-	fl1  fileList
-	fl2  fileList
 	csl  cacheStorageList
-	stat stats       = stats{downloaded: 3, served: 72}
-	pfl  popFileList = popFileList{popFile{f1, 10}, popFile{f2, 5}}
+	stat stats = stats{downloaded: 3, served: 72}
 )
 
 func TestCalStat(t *testing.T) {
@@ -27,68 +17,11 @@ func TestArrangeCooperation(t *testing.T) {
 	t.Log("cacheStorages:", csl)
 }
 
-func TestSmallCellList_calSimilarity(t *testing.T) {
-	t.Log("scl.calSimilarity:", smallCells.calSimilarity(exponential))
-}
-
-func TestFilePop_calSimilarity(t *testing.T) {
-	s := fp1.calSimilarity(fp2, exponential, nil)
-	t.Log("filePop.calSimilarity:", s)
-}
-
-func TestExponential(t *testing.T) {
-	t.Log("exponential:", exponential(fpn1, fpn2))
-}
-
-func TestCosine(t *testing.T) {
-	t.Log("cosine:", cosine(fpn1, fpn2))
-}
-
-func TestFilePop_sum(t *testing.T) {
-	if fp1.sum() != 6 {
-		t.Error("filePop.sum wrong")
-	}
-}
-
-func TestFilePop_normalize(t *testing.T) {
-	fpn1 = fp1.normalize()
-	if fpn1[f3] != 0.5 {
-		t.Error("filePop.normalize wrong")
-	}
-}
-
-func TestFilePop_getFileList(t *testing.T) {
-	fl1 = fp1.getFileList()
-	fl2 = fp2.getFileList()
-	if len(fl1) != 3 {
-		t.Error("filePop.getFileList wrong")
-	}
-}
-
-func TestFileList_intersection(t *testing.T) {
-	if len(fl1.intersect(fl2)) != 2 {
-		t.Error("fileList.intersect wrong")
-	}
-}
-
-func TestCsl_hasFile(t *testing.T) {
-	t.Log(csl.smallCellsHasFile(f1))
-}
-
 func TestCsl_assignNewClient(t *testing.T) {
 	csl.assignNewClient(clients["1"], f1)
 }
 
 func TestSimulate(t *testing.T) {
-	periods[0].serve(leastRecentUsed, nil)
-	periods[2].serve(leastFreqUsed, nil)
-}
-
-func TestPfl_has(t *testing.T) {
-	t.Log(pfl.has(f1))
-	t.Log(pfl[:1].has(f1))
-	t.Log(pfl[:0].has(f1))
-	pfl = nil
-	t.Log(pfl.has(f1))
-	t.Log(pfl[:0].has(f1))
+	periods[0].serve(leastRecentlyUsed, nil)
+	periods[2].serve(leastFrequentlyUsed, nil)
 }

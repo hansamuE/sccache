@@ -6,6 +6,17 @@ import (
 	"time"
 )
 
+func TestReadConfigs(t *testing.T) {
+	j := `
+[
+	{"is_trained": true, "period_duration": "24h", "cooperation_threshold": 0.06, "test_start_period": 2, "cache_policy": "leastRecentlyUsed", "similarity_formula": "exponential", "files_limit": 0, "file_size": 10, "cache_storage_size": 30},
+	{"is_trained": true, "period_duration": "24h", "cooperation_threshold": 0.06, "test_start_period": 2, "cache_policy": "leastRecentlyUsed", "similarity_formula": "exponential", "files_limit": 0, "file_size": 10, "cache_storage_size": 50}
+]
+`
+	readConfigs(strings.NewReader(j))
+	t.Log(Configs)
+}
+
 func TestReadRequests(t *testing.T) {
 	sample := `1494783546	NGLxoKOvzu4	1
 1494783765	NGLxoKOvzu4	2
@@ -24,25 +35,25 @@ func TestReadRequests(t *testing.T) {
 	if len(clients) != 3 {
 		t.Error("client number wrong:", len(clients))
 	}
-	if files["5bA7nrdVEqE"].popPrd[2] != 1 {
-		t.Error("f.popPrd wrong")
+	if files["5bA7nrdVEqE"].popularityPeriod[2] != 1 {
+		t.Error("f.popularityPeriod wrong")
 	}
-	if files["5bA7nrdVEqE"].popAcm[2] != 2 {
-		t.Error("f.popAcm wrong")
+	if files["5bA7nrdVEqE"].popularityAccumulated[2] != 2 {
+		t.Error("f.popularityAccumulated wrong")
 	}
-	if len(clients["2"].popPrd[2]) != 1 {
-		t.Error("c.popPrd wrong")
+	if len(clients["2"].popularityPeriod[2]) != 1 {
+		t.Error("c.popularityPeriod wrong")
 	}
-	if len(clients["2"].popAcm[2]) != 3 {
-		t.Error("c.popAcm wrong")
+	if len(clients["2"].popularityAccumulated[2]) != 3 {
+		t.Error("c.popularityAccumulated wrong")
 	}
-	if periods[0].pop[files["NGLxoKOvzu4"]] != 2 {
-		t.Error("p.pop wrong")
+	if periods[0].popularities[files["NGLxoKOvzu4"]] != 2 {
+		t.Error("p.popularities wrong")
 	}
 	t.Log("periods:", periods)
 	t.Log("files:", files)
 	t.Log("clients:", clients)
-	t.Log("popFiles:", periods[2].popFilesAcm)
+	t.Log("popularFiles:", periods[2].popularFilesAccumulated)
 }
 
 func TestReadClientsAssignment(t *testing.T) {
@@ -53,8 +64,8 @@ func TestReadClientsAssignment(t *testing.T) {
 	if len(smallCells) != 2 {
 		t.Error("sc number wrong:", len(smallCells))
 	}
-	if len(smallCells[1].popAcm[2]) != 3 {
-		t.Error("sc popAcm wrong")
+	if len(smallCells[1].popularitiesAccumulated[2]) != 3 {
+		t.Error("sc popularityAccumulated wrong")
 	}
 	t.Log("sc:", smallCells)
 	t.Log("sc[1]:", smallCells[1])
@@ -68,15 +79,4 @@ func TestClient_assignTo(t *testing.T) {
 	}
 	t.Log("sc[0].Clients:", smallCells[0].clients)
 	t.Log("c[2].SmallCell:", clients["2"].smallCell)
-}
-
-func TestReadConfigs(t *testing.T) {
-	j := `
-[
-	{"is_trained": true, "period_duration": "24h", "cooperation_threshold": 0.06, "test_start_period": 2, "cache_policy": "leastRecentlyUsed", "similarity_formula": "exponential", "files_limit": 0, "file_size": 10, "cache_storage_size": 30},
-	{"is_trained": true, "period_duration": "24h", "cooperation_threshold": 0.06, "test_start_period": 2, "cache_policy": "leastRecentlyUsed", "similarity_formula": "exponential", "files_limit": 0, "file_size": 10, "cache_storage_size": 50}
-]
-`
-	readConfigs(strings.NewReader(j))
-	t.Log(Configs)
 }
