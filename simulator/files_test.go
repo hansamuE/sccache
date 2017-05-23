@@ -36,9 +36,9 @@ func TestCsl_hasFile(t *testing.T) {
 
 func TestFl_has(t *testing.T) {
 	t.Log(fl1.has(f1))
-	t.Log(fl1[:1].has(f1))
-	t.Log(fl1[:0].has(f1))
+	//t.Log(fl1[:1].has(f1))
+	//t.Log(fl1[:0].has(f1))
 	fl3 = nil
 	t.Log(fl3.has(f1))
-	t.Log(fl3[:0].has(f1))
+	//t.Log(fl3[:0].has(f1))
 }

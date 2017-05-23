@@ -13,6 +13,14 @@ func main() {
 	}
 	switch args[1] {
 	case "sim":
-		simulator.Simulate()
+		var path string
+		if len(args) < 3 {
+			path = ""
+		} else {
+			path = args[2]
+		}
+		simulator.Simulate(path)
+	default:
+		return
 	}
 }

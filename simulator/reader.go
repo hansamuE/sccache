@@ -9,11 +9,12 @@ import (
 )
 
 var (
-	periods    periodList
-	files      map[string]*file
-	clients    map[string]*client
-	smallCells smallCellList
-	configs    configList
+	periods     periodList
+	files       map[string]*file
+	clients     map[string]*client
+	smallCells  smallCellList
+	configs     configList
+	configJSONs configJSONList
 )
 
 type clientList []*client
@@ -59,7 +60,6 @@ type smallCell struct {
 
 func readConfigs(reader io.Reader) {
 	dec := json.NewDecoder(reader)
-	configJSONs := make(configJSONList, 0)
 	for dec.More() {
 		err := dec.Decode(&configJSONs)
 		if err != nil {

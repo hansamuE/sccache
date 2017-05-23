@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 )
 
 var (
@@ -30,16 +31,16 @@ func (pl periodList) calRate() float64 {
 	return float64(dl) / float64(dl+sv)
 }
 
-func Simulate() {
-	conf, err := os.Open("configs.json")
+func Simulate(path string) {
+	conf, err := os.Open(path + "configs.json")
 	if err != nil {
 		panic(err)
 	}
 	defer conf.Close()
 	readConfigs(conf)
 
-	for _, c := range configs {
-		requests, err := os.Open("requests.csv")
+	for i, c := range configs {
+		requests, err := os.Open(path + "requests.csv")
 		if err != nil {
 			panic(err)
 		}
@@ -51,7 +52,7 @@ func Simulate() {
 			fmt.Println("Done Training")
 		}
 
-		clusters, err := os.Open("clusters.csv")
+		clusters, err := os.Open(path + "clusters.csv")
 		if err != nil {
 			panic(err)
 		}
@@ -62,6 +63,16 @@ func Simulate() {
 		var pl periodList = periods[c.TestStartPeriod:]
 		pl.serve(c)
 		pl.postProcess()
+
+		cj := configJSONs[i]
+		result, err := os.Create(path + cj.SimilarityFormula + "_" + strconv.FormatBool(cj.IsPeriodSimilarity) + "_" + cj.CachePolicy + "_" + strconv.Itoa(cj.FilesLimit) + "_" + strconv.Itoa(cj.FileSize) + "_" + strconv.Itoa(cj.CacheStorageSize) + ".csv")
+		if err != nil {
+			panic(err)
+		}
+		defer result.Close()
+		for _, p := range pl {
+			result.WriteString(p.end.Format("2006-01-02 15") + "\t" + strconv.FormatFloat(p.dlRate, 'f', 5, 64) + "\n")
+		}
 	}
 }
 
