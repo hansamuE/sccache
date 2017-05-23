@@ -17,7 +17,7 @@ func GenerateRequests(fileDir string, userNum int) {
 	timeMap := make(map[int][]int)
 	for id, v := range videos {
 		for i := 0; i < len(v.ParseTime)-1; i++ {
-			for j := 0; j < v.ViewCount[i+1]-v.ViewCount[i]; j++ {
+			for j := 0; j < (v.ViewCount[i+1]-v.ViewCount[i])/1000; j++ {
 				t := v.ParseTime[i] + ran.Intn(v.ParseTime[i+1]-v.ParseTime[i])
 				if req, exist := timeMap[t]; !exist {
 					vid := make([]int, 0)
@@ -49,7 +49,10 @@ func GenerateRequests(fileDir string, userNum int) {
 		}
 	}
 
-	f, _ := os.Create(fileDir + "outputData/output_" + strconv.Itoa(videoNum) + "_" + strconv.Itoa(userNum) + ".csv")
+	f, err := os.Create(fileDir + "requests_" + strconv.Itoa(videoNum) + "_" + strconv.Itoa(userNum) + ".csv")
+	if err != nil {
+		panic(err)
+	}
 	defer f.Close()
 
 	lastReq := make([]int, userNum)
@@ -73,12 +76,15 @@ func GenerateRequests(fileDir string, userNum int) {
 					r -= float64(pref[v])
 					if r < 0 && t-lastReq[u] > 180 {
 						lastReq[u] = t
-						fmt.Println(t, v, u)
+						//fmt.Println(t, v, u)
 						f.WriteString(strconv.Itoa(t) + "\t" + strconv.Itoa(v) + "\t" + strconv.Itoa(u) + "\n")
 						break
 					}
 				}
 			}
+		}
+		if t%3600 == 0 {
+			fmt.Println(t)
 		}
 	}
 }

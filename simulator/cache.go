@@ -47,7 +47,6 @@ func (cs *cacheStorage) cacheFile(f *file, cp cachePolicy) (int, *cache) {
 	}
 	sizeCached := cf.size
 	if !ok || cf.size != f.size {
-		cl := cp(cs.caches)
 		if cs.space >= sizeNotCached {
 			cs.space -= sizeNotCached
 			sizeNotCached = 0
@@ -55,7 +54,7 @@ func (cs *cacheStorage) cacheFile(f *file, cp cachePolicy) (int, *cache) {
 			sizeNotCached -= cs.space
 			cs.space = 0
 			di := make([]int, 0)
-			for i, v := range cl {
+			for i, v := range cs.caches {
 				if v == cf || v.fixed {
 					continue
 				}
@@ -75,16 +74,15 @@ func (cs *cacheStorage) cacheFile(f *file, cp cachePolicy) (int, *cache) {
 		}
 		cf.size = f.size - sizeNotCached
 		if cf.size != 0 {
-			cl = append(cl, cf)
+			cs.caches = append(cs.caches, cf)
 		}
 	}
 	return sizeCached, cf
 }
 
 func (cs *cacheStorage) deleteCache(di []int) {
-	c := cs.caches
 	for i, v := range di {
-		c = append(c[:v-i], c[v-i+1:]...)
+		cs.caches = append(cs.caches[:v-i], cs.caches[v-i+1:]...)
 	}
 }
 

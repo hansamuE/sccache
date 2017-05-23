@@ -99,6 +99,7 @@ func preProcess(config config) {
 	}
 	for _, cs := range cacheStorages {
 		cs.size = config.CacheStorageSize
+		cs.space = cs.size
 	}
 }
 
@@ -119,7 +120,7 @@ func (p *period) serve(cp cachePolicy, filter fileList) {
 	periodNo = p.id
 	for _, r := range p.requests {
 		t, f, c := r.time, r.file, r.client
-		if !filter.has(f) {
+		if len(filter) != 0 && !filter.has(f) {
 			continue
 		}
 		if c.smallCell == nil {
@@ -201,6 +202,9 @@ func (scl smallCellList) arrangeCooperation(threshold float64, fn similarityForm
 					ok[j] = true
 				}
 			}
+		}
+		if !ok[len(scl)-1] {
+			group = append(group, smallCellList{scl[len(scl)-1]})
 		}
 	}
 
