@@ -12,7 +12,8 @@ var (
 	pn2 popularitiesNormalized = popularitiesNormalized{f1: 0.7, f2: 0.3}
 	fl1 fileList
 	fl2 fileList
-	fpl filePopularityList = filePopularityList{filePopularity{f1, 10}, filePopularity{f2, 5}}
+	fl3 fileList
+	//fpl filePopularityList = filePopularityList{filePopularity{f1, 10}, filePopularity{f2, 5}}
 )
 
 func TestPopularity_getFileList(t *testing.T) {
@@ -33,11 +34,11 @@ func TestCsl_hasFile(t *testing.T) {
 	t.Log(csl.smallCellsHasFile(f1))
 }
 
-func TestFpl_has(t *testing.T) {
-	t.Log(fpl.has(f1))
-	t.Log(fpl[:1].has(f1))
-	t.Log(fpl[:0].has(f1))
-	fpl = nil
-	t.Log(fpl.has(f1))
-	t.Log(fpl[:0].has(f1))
+func TestFl_has(t *testing.T) {
+	t.Log(fl1.has(f1))
+	t.Log(fl1[:1].has(f1))
+	t.Log(fl1[:0].has(f1))
+	fl3 = nil
+	t.Log(fl3.has(f1))
+	t.Log(fl3[:0].has(f1))
 }

@@ -13,7 +13,7 @@ var (
 	files      map[string]*file
 	clients    map[string]*client
 	smallCells smallCellList
-	Configs    []Config
+	configs    configList
 )
 
 type clientList []*client
@@ -45,8 +45,8 @@ type period struct {
 	end                     time.Time
 	requests                []request
 	popularities            popularities
-	popularFiles            filePopularityList
-	popularFilesAccumulated filePopularityList
+	popularFiles            fileList
+	popularFilesAccumulated fileList
 	newClients              clientList
 	stats
 }
@@ -59,14 +59,14 @@ type smallCell struct {
 
 func readConfigs(reader io.Reader) {
 	dec := json.NewDecoder(reader)
-	ConfigJSONs := make(ConfigJSONList, 0)
+	configJSONs := make(configJSONList, 0)
 	for dec.More() {
-		err := dec.Decode(&ConfigJSONs)
+		err := dec.Decode(&configJSONs)
 		if err != nil {
 			panic(err)
 		}
 	}
-	Configs = ConfigJSONs.toConfig()
+	configs = configJSONs.toConfig()
 }
 
 func readRequests(reader io.Reader, duration time.Duration) {
@@ -174,12 +174,12 @@ func (c *client) assignTo(sc *smallCell) {
 			if osc != nil {
 				osc.popularitiesAccumulated[p][k] -= v
 				if osc.cacheStorage != nil {
-					osc.cacheStorage.popAcm[p][k] -= v
+					osc.cacheStorage.popularitiesAccumulated[p][k] -= v
 				}
 			}
 			sc.popularitiesAccumulated[p][k] += v
 			if sc.cacheStorage != nil {
-				sc.cacheStorage.popAcm[p][k] += v
+				sc.cacheStorage.popularitiesAccumulated[p][k] += v
 			}
 		}
 	}

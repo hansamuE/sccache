@@ -10,12 +10,12 @@ type cachePolicy func([]*cache) []*cache
 type cacheStorageList []*cacheStorage
 
 type cacheStorage struct {
-	smallCells smallCellList
-	popAcm     []popularities
-	popFiles   []filePopularityList
-	caches     []*cache
-	size       int
-	space      int
+	smallCells              smallCellList
+	popularitiesAccumulated []popularities
+	popularFiles            []fileList
+	caches                  []*cache
+	size                    int
+	space                   int
 	stats
 }
 

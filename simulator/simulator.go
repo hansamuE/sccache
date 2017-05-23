@@ -31,14 +31,14 @@ func (pl periodList) calRate() float64 {
 }
 
 func Simulate() {
-	configs, err := os.Open("configs.json")
+	conf, err := os.Open("configs.json")
 	if err != nil {
 		panic(err)
 	}
-	defer configs.Close()
-	readConfigs(configs)
+	defer conf.Close()
+	readConfigs(conf)
 
-	for _, c := range Configs {
+	for _, c := range configs {
 		requests, err := os.Open("requests.csv")
 		if err != nil {
 			panic(err)
@@ -65,7 +65,7 @@ func Simulate() {
 	}
 }
 
-func preProcess(config Config) {
+func preProcess(config config) {
 	smallCells.arrangeCooperation(config.CooperationThreshold, config.SimilarityFormula)
 	for _, f := range files {
 		f.size = config.FileSize
@@ -75,20 +75,24 @@ func preProcess(config Config) {
 	}
 }
 
-func (pl periodList) serve(config Config) {
-	fmt.Println("Start Testing With Config:", config)
-	for _, p := range pl {
+func (pl periodList) serve(config config) {
+	fmt.Println("Start Testing With config:", config)
+	for pn, p := range pl {
 		p.serve(config.CachePolicy, p.popularFiles[:config.FilesLimit])
-		p.endPeriod(config.CachePolicy, config.SimilarityFormula)
+		if config.IsPeriodSimilarity {
+			p.endPeriod(config.CachePolicy, config.SimilarityFormula, pl[pn+1].popularFiles[:config.FilesLimit])
+		} else {
+			p.endPeriod(config.CachePolicy, config.SimilarityFormula, nil)
+		}
 	}
 	fmt.Println("All Periods Tested")
 }
 
-func (p *period) serve(cp cachePolicy, fileFilter filePopularityList) {
+func (p *period) serve(cp cachePolicy, filter fileList) {
 	periodNo = p.id
 	for _, r := range p.requests {
 		t, f, c := r.time, r.file, r.client
-		if !fileFilter.has(f) {
+		if !filter.has(f) {
 			continue
 		}
 		if c.smallCell == nil {
@@ -107,10 +111,10 @@ func (p *period) serve(cp cachePolicy, fileFilter filePopularityList) {
 	}
 }
 
-func (p *period) endPeriod(cp cachePolicy, fn similarityFormula) {
+func (p *period) endPeriod(cp cachePolicy, fn similarityFormula, filter fileList) {
 	p.calRate()
 	for _, c := range p.newClients {
-		sim := c.calSimilarity(fn)
+		sim := c.calSimilarity(fn, filter)
 		mi, ms := -1, 0.0
 		for i, s := range sim {
 			if s > ms {
@@ -133,9 +137,9 @@ func (pl periodList) postProcess() {
 }
 
 func (csl cacheStorageList) assignNewClient(c *client, f *file) {
-	sclf := csl.smallCellsHasFile(f)
-	if len(sclf) != 0 {
-		c.assignTo(sclf.leastClients())
+	scl := csl.smallCellsHasFile(f)
+	if len(scl) != 0 {
+		c.assignTo(scl.leastClients())
 	} else {
 		c.assignTo(smallCells.leastClients())
 	}
@@ -154,7 +158,7 @@ func (scl smallCellList) arrangeCooperation(threshold float64, fn similarityForm
 		}
 	} else {
 		ok := make([]bool, len(scl))
-		sim := scl.calSimilarity(fn)
+		sim := scl.calSimilarity(fn, nil)
 		for i := 0; i < len(scl)-1; i++ {
 			if ok[i] {
 				continue
@@ -198,14 +202,14 @@ func (sc *smallCell) assignTo(cs *cacheStorage) {
 	sc.cacheStorage = cs
 
 	for pn, fp := range sc.popularitiesAccumulated {
-		if len(cs.popAcm)-1 < pn {
-			cs.popAcm = append(cs.popAcm, make(popularities))
+		if len(cs.popularitiesAccumulated)-1 < pn {
+			cs.popularitiesAccumulated = append(cs.popularitiesAccumulated, make(popularities))
 		}
 		for k, v := range fp {
 			if ocs != nil {
-				ocs.popAcm[pn][k] -= v
+				ocs.popularitiesAccumulated[pn][k] -= v
 			}
-			cs.popAcm[pn][k] += v
+			cs.popularitiesAccumulated[pn][k] += v
 		}
 	}
 }

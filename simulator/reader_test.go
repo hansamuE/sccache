@@ -9,12 +9,12 @@ import (
 func TestReadConfigs(t *testing.T) {
 	j := `
 [
-	{"is_trained": true, "period_duration": "24h", "cooperation_threshold": 0.06, "test_start_period": 2, "cache_policy": "leastRecentlyUsed", "similarity_formula": "exponential", "files_limit": 0, "file_size": 10, "cache_storage_size": 30},
-	{"is_trained": true, "period_duration": "24h", "cooperation_threshold": 0.06, "test_start_period": 2, "cache_policy": "leastRecentlyUsed", "similarity_formula": "exponential", "files_limit": 0, "file_size": 10, "cache_storage_size": 50}
+	{"is_trained": true, "period_duration": "24h", "cooperation_threshold": 0.06, "test_start_period": 2, "cache_policy": "leastRecentlyUsed", "similarity_formula": "exponential", "is_period_similarity": false, "files_limit": 0, "file_size": 10, "cache_storage_size": 30},
+	{"is_trained": true, "period_duration": "24h", "cooperation_threshold": 0.06, "test_start_period": 2, "cache_policy": "leastRecentlyUsed", "similarity_formula": "exponential", "is_period_similarity": false, "files_limit": 0, "file_size": 10, "cache_storage_size": 50}
 ]
 `
 	readConfigs(strings.NewReader(j))
-	t.Log(Configs)
+	t.Log(configs)
 }
 
 func TestReadRequests(t *testing.T) {

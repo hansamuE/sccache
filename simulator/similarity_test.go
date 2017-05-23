@@ -3,7 +3,7 @@ package simulator
 import "testing"
 
 func TestSmallCellList_calSimilarity(t *testing.T) {
-	t.Log("scl.calSimilarity:", smallCells.calSimilarity(exponential))
+	t.Log("scl.calSimilarity:", smallCells.calSimilarity(exponential, nil))
 }
 
 func TestFilePop_calSimilarity(t *testing.T) {

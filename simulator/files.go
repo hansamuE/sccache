@@ -22,24 +22,32 @@ func (pl periodList) setPopularFiles(files map[string]*file) {
 		}
 		sort.Sort(prd)
 		sort.Sort(acm)
-		p.popularFiles = prd
-		p.popularFilesAccumulated = acm
+		p.popularFiles = prd.getFileList()
+		p.popularFilesAccumulated = acm.getFileList()
 	}
 }
 
 func (cs *cacheStorage) setPopularFiles(period int) {
 	fpl := make(filePopularityList, 0)
-	for f, pop := range cs.popAcm[period] {
+	for f, pop := range cs.popularitiesAccumulated[period] {
 		fpl = append(fpl, filePopularity{f, pop})
 	}
 	sort.Sort(fpl)
-	cs.popFiles[period] = fpl
+	cs.popularFiles[period] = fpl.getFileList()
 }
 
 func (p popularities) getFileList() fileList {
 	fl := make(fileList, 0, len(p))
 	for f := range p {
 		fl = append(fl, f)
+	}
+	return fl
+}
+
+func (fpl filePopularityList) getFileList() fileList {
+	fl := make(fileList, 0, len(fpl))
+	for _, fp := range fpl {
+		fl = append(fl, fp.file)
 	}
 	return fl
 }
@@ -60,12 +68,12 @@ func (fl fileList) intersect(fl2 fileList) fileList {
 	return ifl
 }
 
-func (fpl filePopularityList) has(f *file) bool {
-	if fpl == nil {
+func (fl fileList) has(file *file) bool {
+	if fl == nil {
 		return true
 	}
-	for _, fp := range fpl {
-		if fp.file == f {
+	for _, f := range fl {
+		if f == file {
 			return true
 		}
 	}
