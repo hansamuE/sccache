@@ -5,6 +5,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"time"
 )
 
 var (
@@ -32,47 +33,62 @@ func (pl periodList) calRate() float64 {
 }
 
 func Simulate(path string) {
-	conf, err := os.Open(path + "configs.json")
-	if err != nil {
-		panic(err)
-	}
-	defer conf.Close()
-	readConfigs(conf)
+	readConfigsFile(path)
 
 	for i, c := range configs {
-		requests, err := os.Open(path + "requests.csv")
-		if err != nil {
-			panic(err)
-		}
-		defer requests.Close()
-		fmt.Println("Read Requests...")
-		readRequests(requests, c.PeriodDuration)
+		readRequestsFile(path, c.PeriodDuration)
 
 		if !c.IsTrained {
 			fmt.Println("Done Training")
 		}
 
-		clusters, err := os.Open(path + "clusters.csv")
-		if err != nil {
-			panic(err)
-		}
-		defer clusters.Close()
-		readClientsAssignment(clusters)
+		readClustersFile(path)
 
 		preProcess(c)
 		var pl periodList = periods[c.TestStartPeriod:]
 		pl.serve(c)
 		pl.postProcess()
 
-		cj := configJSONs[i]
-		result, err := os.Create(path + cj.SimilarityFormula + "_" + strconv.FormatBool(cj.IsPeriodSimilarity) + "_" + cj.CachePolicy + "_" + strconv.Itoa(cj.FilesLimit) + "_" + strconv.Itoa(cj.FileSize) + "_" + strconv.Itoa(cj.CacheStorageSize) + ".csv")
-		if err != nil {
-			panic(err)
-		}
-		defer result.Close()
-		for _, p := range pl {
-			result.WriteString(p.end.Format("2006-01-02 15") + "\t" + strconv.FormatFloat(p.dlRate, 'f', 5, 64) + "\n")
-		}
+		writeResultFile(path, pl, configJSONs[i])
+	}
+}
+
+func readConfigsFile(path string) {
+	f, err := os.Open(path + "configs.json")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	readConfigs(f)
+}
+
+func readRequestsFile(path string, duration time.Duration) {
+	f, err := os.Open(path + "requests.csv")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	fmt.Println("Read Requests...")
+	readRequests(f, duration)
+}
+
+func readClustersFile(path string) {
+	f, err := os.Open(path + "clusters.csv")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	readClientsAssignment(f)
+}
+
+func writeResultFile(path string, pl periodList, cj configJSON) {
+	f, err := os.Create(path + cj.SimilarityFormula + "_" + strconv.FormatBool(cj.IsPeriodSimilarity) + "_" + cj.CachePolicy + "_" + strconv.Itoa(cj.FilesLimit) + "_" + strconv.Itoa(cj.FileSize) + "_" + strconv.Itoa(cj.CacheStorageSize) + ".csv")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	for _, p := range pl {
+		f.WriteString(p.end.Format("2006-01-02 15") + "\t" + strconv.FormatFloat(p.dlRate, 'f', 5, 64) + "\n")
 	}
 }
 
