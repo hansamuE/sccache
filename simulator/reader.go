@@ -6,17 +6,22 @@ import (
 	"io"
 	"strconv"
 	"time"
+
+	"github.com/cdipaolo/goml/cluster"
 )
 
 var (
 	periods     periodList
-	files       map[string]*file
-	clients     map[string]*client
+	files       fileMap
+	filesList   fileList
+	clients     clientMap
 	smallCells  smallCellList
 	configs     configList
 	configJSONs configJSONList
 )
 
+type fileMap map[string]*file
+type clientMap map[string]*client
 type clientList []*client
 type periodList []*period
 type smallCellList []*smallCell
@@ -45,6 +50,7 @@ type period struct {
 	id                      int
 	end                     time.Time
 	requests                []request
+	clients                 clientMap
 	popularities            popularities
 	popularFiles            fileList
 	popularFilesAccumulated fileList
@@ -76,8 +82,8 @@ func readRequests(reader io.Reader, duration time.Duration) {
 	var c *client
 	var ok bool
 	periods = make(periodList, 0)
-	files = make(map[string]*file)
-	clients = make(map[string]*client)
+	files = make(fileMap)
+	clients = make(clientMap)
 	r := csv.NewReader(reader)
 	r.Comma = '\t'
 	for {
@@ -89,11 +95,19 @@ func readRequests(reader io.Reader, duration time.Duration) {
 		}
 
 		if f, ok = files[rec[1]]; !ok {
-			files[rec[1]] = &file{id: rec[1], popularityPeriod: make([]int, 1), popularityAccumulated: make([]int, 1)}
+			files[rec[1]] = &file{
+				id:                    rec[1],
+				popularityPeriod:      make([]int, 1),
+				popularityAccumulated: make([]int, 1),
+			}
 			f = files[rec[1]]
 		}
 		if c, ok = clients[rec[2]]; !ok {
-			clients[rec[2]] = &client{id: rec[2], popularityPeriod: []popularities{make(popularities)}, popularityAccumulated: []popularities{make(popularities)}}
+			clients[rec[2]] = &client{
+				id:                    rec[2],
+				popularityPeriod:      []popularities{make(popularities)},
+				popularityAccumulated: []popularities{make(popularities)},
+			}
 			c = clients[rec[2]]
 		}
 		ti, err := strconv.ParseInt(rec[0], 10, 64)
@@ -104,15 +118,30 @@ func readRequests(reader io.Reader, duration time.Duration) {
 		if pend.IsZero() {
 			p = 0
 			pend = t.Round(duration)
-			periods = append(periods, &period{id: p, end: pend, requests: make([]request, 0), popularities: make(popularities), newClients: make(clientList, 0)})
+			periods = append(periods, &period{
+				id:           p,
+				end:          pend,
+				requests:     make([]request, 0),
+				clients:      make(clientMap),
+				popularities: make(popularities),
+				newClients:   make(clientList, 0),
+			})
 		} else {
 			for t.After(pend) {
 				p = len(periods)
 				pend = pend.Add(duration)
-				periods = append(periods, &period{id: p, end: pend, requests: make([]request, 0), popularities: make(popularities), newClients: make(clientList, 0)})
+				periods = append(periods, &period{
+					id:           p,
+					end:          pend,
+					requests:     make([]request, 0),
+					clients:      make(clientMap),
+					popularities: make(popularities),
+					newClients:   make(clientList, 0),
+				})
 			}
 		}
 		periods[p].requests = append(periods[p].requests, request{t, f, c})
+		periods[p].clients[c.id] = c
 
 		for _, fp := range files {
 			for len(fp.popularityPeriod)-1 < p {
@@ -136,6 +165,7 @@ func readRequests(reader io.Reader, duration time.Duration) {
 		periods[p].popularities[f]++
 	}
 	periods.setPopularFiles(files)
+	filesList = files.getFileList()
 }
 
 func readClientsAssignment(reader io.Reader) {
@@ -155,6 +185,34 @@ func readClientsAssignment(reader io.Reader) {
 		for _, cid := range rec {
 			clients[cid].assignTo(smallCells[len(smallCells)-1])
 		}
+	}
+}
+
+func readClusteringResult(model string, result io.Reader) {
+	clusteringModel = cluster.NewKMeans(0, maxIterations, nil)
+	clusteringModel.RestoreFromFile(model)
+	smallCells = make(smallCellList, len(clusteringModel.Centroids))
+	for i := range smallCells {
+		smallCells[i] = &smallCell{
+			clients:                 make(clientMap),
+			popularitiesAccumulated: []popularities{make(popularities)},
+		}
+	}
+	r := csv.NewReader(result)
+	r.Comma = '\t'
+	for {
+		rec, err := r.Read()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			panic(err)
+		}
+
+		scNo, err := strconv.Atoi(rec[1])
+		if err != nil {
+			panic(err)
+		}
+		clients[rec[0]].assignTo(smallCells[scNo])
 	}
 }
 

@@ -22,6 +22,6 @@ func TestCsl_assignNewClient(t *testing.T) {
 }
 
 func TestSimulate(t *testing.T) {
-	periods[0].serve(leastRecentlyUsed, nil)
-	periods[2].serve(leastFrequentlyUsed, nil)
+	periods[0].serve(configs[0], nil)
+	periods[2].serve(configs[1], nil)
 }

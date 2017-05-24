@@ -52,6 +52,14 @@ func (fpl filePopularityList) getFileList() fileList {
 	return fl
 }
 
+func (fm fileMap) getFileList() fileList {
+	fl := make(fileList, 0, len(fm))
+	for _, f := range fm {
+		fl = append(fl, f)
+	}
+	return fl
+}
+
 func (fl fileList) intersect(fl2 fileList) fileList {
 	if fl2 == nil {
 		return fl

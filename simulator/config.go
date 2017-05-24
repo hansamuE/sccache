@@ -7,12 +7,16 @@ type configJSONList []configJSON
 
 type config struct {
 	IsTrained            bool
+	TrainStartPeriod     int
+	TrainEndPeriod       int
+	ClusterNumber        int
 	PeriodDuration       time.Duration
 	CooperationThreshold float64
 	TestStartPeriod      int
 	CachePolicy          cachePolicy
 	SimilarityFormula    similarityFormula
 	IsPeriodSimilarity   bool
+	IsAssignClustering   bool
 	FilesLimit           int
 	FileSize             int
 	CacheStorageSize     int
@@ -20,12 +24,16 @@ type config struct {
 
 type configJSON struct {
 	IsTrained            bool    `json:"is_trained"`
+	TrainStartPeriod     int     `json:"train_start_period"`
+	TrainEndPeriod       int     `json:"train_end_period"`
+	ClusterNumber        int     `json:"cluster_number"`
 	PeriodDuration       string  `json:"period_duration"`
 	CooperationThreshold float64 `json:"cooperation_threshold"`
 	TestStartPeriod      int     `json:"test_start_period"`
 	CachePolicy          string  `json:"cache_policy"`
 	SimilarityFormula    string  `json:"similarity_formula"`
 	IsPeriodSimilarity   bool    `json:"is_period_similarity"`
+	IsAssignClustering   bool    `json:"is_assign_clustering"`
 	FilesLimit           int     `json:"files_limit"`
 	FileSize             int     `json:"file_size"`
 	CacheStorageSize     int     `json:"cache_storage_size"`
@@ -36,6 +44,9 @@ func (cjl configJSONList) toConfig() configList {
 	cl := make(configList, len(cjl))
 	for i, cj := range cjl {
 		cl[i].IsTrained = cj.IsTrained
+		cl[i].TrainStartPeriod = cj.TrainStartPeriod
+		cl[i].TrainEndPeriod = cj.TrainEndPeriod
+		cl[i].ClusterNumber = cj.ClusterNumber
 		cl[i].PeriodDuration, err = time.ParseDuration(cj.PeriodDuration)
 		if err != nil {
 			panic(err)
@@ -48,6 +59,8 @@ func (cjl configJSONList) toConfig() configList {
 			cl[i].CachePolicy = leastRecentlyUsed
 		case "leastFrequentlyUsed":
 			cl[i].CachePolicy = leastFrequentlyUsed
+		default:
+			cl[i].CachePolicy = leastFrequentlyUsed
 		}
 
 		switch cj.SimilarityFormula {
@@ -55,9 +68,12 @@ func (cjl configJSONList) toConfig() configList {
 			cl[i].SimilarityFormula = exponential
 		case "cosine":
 			cl[i].SimilarityFormula = cosine
+		default:
+			cl[i].SimilarityFormula = exponential
 		}
 
 		cl[i].IsPeriodSimilarity = cj.IsPeriodSimilarity
+		cl[i].IsAssignClustering = cj.IsAssignClustering
 		cl[i].FilesLimit = cj.FilesLimit
 		cl[i].FileSize = cj.FileSize
 		cl[i].CacheStorageSize = cj.CacheStorageSize
