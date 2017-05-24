@@ -187,7 +187,7 @@ func (scl smallCellList) arrangeCooperation(threshold float64, fn similarityForm
 	} else {
 		ok := make([]bool, len(scl))
 		sim := scl.calSimilarity(fn, nil)
-		for i := 0; i < len(scl)-1; i++ {
+		for i := 0; i < len(scl); i++ {
 			if ok[i] {
 				continue
 			}
@@ -202,9 +202,6 @@ func (scl smallCellList) arrangeCooperation(threshold float64, fn similarityForm
 					ok[j] = true
 				}
 			}
-		}
-		if !ok[len(scl)-1] {
-			group = append(group, smallCellList{scl[len(scl)-1]})
 		}
 	}
 
