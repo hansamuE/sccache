@@ -108,29 +108,35 @@ func readClustersFile(path string) {
 }
 
 func writeResultFile(path string, pl periodList, cj configJSON) {
-	f, err := os.Create(path + cj.SimilarityFormula + "_" + strconv.FormatBool(cj.IsPeriodSimilarity) + "_" + cj.CachePolicy + "_" + strconv.Itoa(cj.FilesLimit) + "_" + strconv.Itoa(cj.FileSize) + "_" + strconv.Itoa(cj.CacheStorageSize) + ".csv")
+	f, err := os.Create(path + "learn" + strconv.Itoa(cj.TestStartPeriod) + "to" + strconv.Itoa(cj.TrainEndPeriod) + "_" + cj.SimilarityFormula + "_" + strconv.FormatBool(cj.IsPeriodSimilarity) + "_" + cj.CachePolicy + "_" + strconv.Itoa(cj.FilesLimit) + "_" + strconv.Itoa(cj.FileSize) + "_" + strconv.Itoa(cj.CacheStorageSize) + ".csv")
 	if err != nil {
 		panic(err)
 	}
 	defer f.Close()
+
+	f.WriteString("Download Rate:\n")
 	for _, p := range pl {
 		f.WriteString(p.end.Format("2006-01-02 15") + "\t" + strconv.FormatFloat(p.dlRate, 'f', 5, 64) + "\n")
 	}
 
-	f2, err := os.Create(path + "cluster_file_popularity_" + strconv.Itoa(cj.TrainStartPeriod) + "_" + strconv.Itoa(cj.TrainEndPeriod) + ".csv")
-	if err != nil {
-		panic(err)
-	}
-	defer f2.Close()
+	f.WriteString("\nSmall Cells \\ Files\n")
 	for _, sc := range smallCells {
 		for i, file := range filesList {
-			f2.WriteString(strconv.Itoa(sc.popularitiesAccumulated[pl[len(pl)-1].id][file]))
+			f.WriteString(strconv.Itoa(sc.popularitiesAccumulated[pl[len(pl)-1].id][file]))
 			if i != len(filesList)-1 {
-				f2.WriteString("\t")
+				f.WriteString("\t")
 			} else {
-				f2.WriteString("\n")
+				f.WriteString(strconv.Itoa(len(sc.clients)) + "\n")
 			}
 		}
+	}
+
+	f.WriteString("\nCooperation:\n")
+	for _, cs := range cacheStorages {
+		for _, sc := range cs.smallCells {
+			f.WriteString(strconv.Itoa(sc.id) + "\t")
+		}
+		f.WriteString("\n")
 	}
 }
 

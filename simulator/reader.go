@@ -59,6 +59,7 @@ type period struct {
 }
 
 type smallCell struct {
+	id                      int
 	clients                 map[string]*client
 	popularitiesAccumulated []popularities
 	cacheStorage            *cacheStorage
@@ -181,7 +182,7 @@ func readClientsAssignment(reader io.Reader) {
 			panic(err)
 		}
 
-		smallCells = append(smallCells, &smallCell{clients: make(map[string]*client), popularitiesAccumulated: []popularities{make(popularities)}})
+		smallCells = append(smallCells, &smallCell{id: len(smallCells), clients: make(map[string]*client), popularitiesAccumulated: []popularities{make(popularities)}})
 		for _, cid := range rec {
 			clients[cid].assignTo(smallCells[len(smallCells)-1])
 		}
@@ -194,6 +195,7 @@ func readClusteringResult(model string, result io.Reader) {
 	smallCells = make(smallCellList, len(clusteringModel.Centroids))
 	for i := range smallCells {
 		smallCells[i] = &smallCell{
+			id:                      i,
 			clients:                 make(clientMap),
 			popularitiesAccumulated: []popularities{make(popularities)},
 		}
