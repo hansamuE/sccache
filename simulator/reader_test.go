@@ -8,12 +8,13 @@ import (
 
 func TestReadConfigs(t *testing.T) {
 	j := `
-[
-	{"is_trained": true, "period_duration": "24h", "cooperation_threshold": 0.06, "test_start_period": 2, "cache_policy": "leastRecentlyUsed", "similarity_formula": "exponential", "is_period_similarity": false, "files_limit": 0, "file_size": 10, "cache_storage_size": 30},
-	{"is_trained": true, "period_duration": "24h", "cooperation_threshold": 0.06, "test_start_period": 2, "cache_policy": "leastRecentlyUsed", "similarity_formula": "exponential", "is_period_similarity": false, "files_limit": 0, "file_size": 10, "cache_storage_size": 50}
-]
+[{"period_duration": "24h", "requests_column": [0, 1, 2], "parameters_list":
+	[{"is_trained": true, "cooperation_threshold": 0.06, "test_start_period": 2, "cache_policy": "leastRecentlyUsed", "similarity_formula": "exponential", "is_period_similarity": false, "files_limit": 0, "file_size": 10, "cache_storage_size": 30},
+	{"is_trained": true, "cooperation_threshold": 0.06, "test_start_period": 2, "cache_policy": "leastRecentlyUsed", "similarity_formula": "exponential", "is_period_similarity": false, "files_limit": 0, "file_size": 10, "cache_storage_size": 50}]
+}]
 `
 	readConfigs(strings.NewReader(j))
+	t.Log(configJSONs)
 	t.Log(configs)
 }
 
@@ -25,7 +26,7 @@ func TestReadRequests(t *testing.T) {
 1494979199	5bA7nrdVEqE	2`
 	reader := strings.NewReader(sample)
 	d, _ := time.ParseDuration("24h")
-	readRequests(reader, d)
+	readRequests(reader, d, configs[0].RequestsColumn, configs[0].RequestsComma)
 	if len(periods[0].requests) != 4 {
 		t.Error("requests number wrong:", len(periods))
 	}

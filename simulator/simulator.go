@@ -36,24 +36,26 @@ func Simulate(path string) {
 	readConfigsFile(path)
 
 	for i, c := range configs {
-		readRequestsFile(path, c.PeriodDuration)
+		readRequestsFile(path, c.PeriodDuration, c.RequestsColumn, c.RequestsComma)
 
-		if !c.IsTrained {
-			fmt.Println("Clustering...")
-			var trainPl periodList = periods[c.TrainStartPeriod : c.TrainEndPeriod+1]
-			cl, guesses := trainPl.clustering(c.ClusterNumber)
-			writeClusteringResultFiles(path, cl, guesses)
-		} else {
-			fmt.Println("Read Clustering Model...")
-			readClusteringResultFiles(path)
+		for j, cp := range configs[i].ParametersList {
+			if !cp.IsTrained {
+				fmt.Println("Clustering...")
+				var trainPl periodList = periods[cp.TrainStartPeriod : cp.TrainEndPeriod+1]
+				cl, guesses := trainPl.clustering(cp.ClusterNumber)
+				writeClusteringResultFiles(path, cl, guesses)
+			} else {
+				fmt.Println("Read Clustering Model...")
+				readClusteringResultFiles(path)
+			}
+
+			preProcess(cp)
+			var pl periodList = periods[cp.TestStartPeriod:]
+			pl.serve(cp)
+			pl.postProcess()
+
+			writeResultFile(path, pl, configJSONs[i].ParametersListJSON[j])
 		}
-
-		preProcess(c)
-		var pl periodList = periods[c.TestStartPeriod:]
-		pl.serve(c)
-		pl.postProcess()
-
-		writeResultFile(path, pl, configJSONs[i])
 	}
 }
 
@@ -66,14 +68,14 @@ func readConfigsFile(path string) {
 	readConfigs(f)
 }
 
-func readRequestsFile(path string, duration time.Duration) {
+func readRequestsFile(path string, duration time.Duration, column []int, comma string) {
 	f, err := os.Open(path + "requests.csv")
 	if err != nil {
 		panic(err)
 	}
 	defer f.Close()
 	fmt.Println("Read Requests...")
-	readRequests(f, duration)
+	readRequests(f, duration, column, comma)
 }
 
 func readClusteringResultFiles(path string) {
@@ -107,8 +109,11 @@ func readClustersFile(path string) {
 	readClientsAssignment(f)
 }
 
-func writeResultFile(path string, pl periodList, cj configJSON) {
-	f, err := os.Create(path + "learn" + strconv.Itoa(cj.TestStartPeriod) + "to" + strconv.Itoa(cj.TrainEndPeriod) + "_" + cj.SimilarityFormula + "_" + strconv.FormatBool(cj.IsPeriodSimilarity) + "_" + cj.CachePolicy + "_" + strconv.Itoa(cj.FilesLimit) + "_" + strconv.Itoa(cj.FileSize) + "_" + strconv.Itoa(cj.CacheStorageSize) + ".csv")
+func writeResultFile(path string, pl periodList, cpj ParametersJSON) {
+	if cpj.ResultFileName == "" {
+		cpj.ResultFileName = path + "learn" + strconv.Itoa(cpj.TrainStartPeriod) + "to" + strconv.Itoa(cpj.TrainEndPeriod) + "_" + cpj.SimilarityFormula + "_" + strconv.FormatBool(cpj.IsPeriodSimilarity) + "_" + cpj.CachePolicy + "_" + strconv.Itoa(cpj.FilesLimit) + "_" + strconv.Itoa(cpj.FileSize) + "_" + strconv.Itoa(cpj.CacheStorageSize) + ".csv"
+	}
+	f, err := os.Create(cpj.ResultFileName)
 	if err != nil {
 		panic(err)
 	}
@@ -140,31 +145,35 @@ func writeResultFile(path string, pl periodList, cj configJSON) {
 	}
 }
 
-func preProcess(config config) {
-	smallCells.arrangeCooperation(config.CooperationThreshold, config.SimilarityFormula)
+func preProcess(cp Parameters) {
+	smallCells.arrangeCooperation(cp.CooperationThreshold, cp.SimilarityFormula)
 	for _, f := range files {
-		f.size = config.FileSize
+		f.size = cp.FileSize
 	}
 	for _, cs := range cacheStorages {
-		cs.size = config.CacheStorageSize
+		cs.size = cp.CacheStorageSize
 		cs.space = cs.size
 	}
 }
 
-func (pl periodList) serve(config config) {
-	fmt.Println("Start Testing With config:", config)
+func (pl periodList) serve(cp Parameters) {
+	fmt.Println("Start Testing With Config:", cp)
 	for pn, p := range pl {
-		p.serve(config, p.popularFiles[:config.FilesLimit])
-		if config.IsPeriodSimilarity {
-			p.endPeriod(config, pl[pn+1].popularFiles[:config.FilesLimit])
+		filesLimit := cp.FilesLimit
+		if filesLimit > len(p.popularFiles) {
+			filesLimit = len(p.popularFiles)
+		}
+		p.serve(cp, p.popularFiles[:filesLimit])
+		if cp.IsPeriodSimilarity {
+			p.endPeriod(cp, pl[pn+1].popularFiles[:filesLimit])
 		} else {
-			p.endPeriod(config, nil)
+			p.endPeriod(cp, nil)
 		}
 	}
 	fmt.Println("All Periods Tested")
 }
 
-func (p *period) serve(config config, filter fileList) {
+func (p *period) serve(cp Parameters, filter fileList) {
 	periodNo = p.id
 	for _, r := range p.requests {
 		t, f, c := r.time, r.file, r.client
@@ -176,12 +185,12 @@ func (p *period) serve(config config, filter fileList) {
 				cacheStorages.assignNewClient(c, f)
 				p.newClients = append(p.newClients, c)
 			} else {
-				c.assign(config, filter)
+				c.assign(cp, filter)
 			}
 		}
 
 		cs := c.smallCell.cacheStorage
-		sizeCached, cf := cs.cacheFile(f, config.CachePolicy)
+		sizeCached, cf := cs.cacheFile(f, cp.CachePolicy)
 		cf.count++
 		cf.lastReq = t
 		cs.served += sizeCached
@@ -191,10 +200,10 @@ func (p *period) serve(config config, filter fileList) {
 	}
 }
 
-func (p *period) endPeriod(config config, filter fileList) {
+func (p *period) endPeriod(cp Parameters, filter fileList) {
 	p.calRate()
 	for _, c := range p.newClients {
-		c.assign(config, filter)
+		c.assign(cp, filter)
 	}
 	fmt.Println("End Period:", p.end)
 }
@@ -205,11 +214,11 @@ func (pl periodList) postProcess() {
 	}
 }
 
-func (c *client) assign(config config, filter fileList) {
-	if config.IsAssignClustering {
+func (c *client) assign(cp Parameters, filter fileList) {
+	if cp.IsAssignClustering {
 		c.assignWithClusteringModel()
 	} else {
-		c.assignWithSimilarity(config.SimilarityFormula, filter)
+		c.assignWithSimilarity(cp.SimilarityFormula, filter)
 	}
 }
 

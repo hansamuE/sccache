@@ -76,7 +76,11 @@ func readConfigs(reader io.Reader) {
 	configs = configJSONs.toConfig()
 }
 
-func readRequests(reader io.Reader, duration time.Duration) {
+func readRequests(reader io.Reader, duration time.Duration, column []int, comma string) {
+	var colTime, colFile, colClient = 0, 1, 2
+	if len(column) != 0 {
+		colTime, colFile, colClient = column[0], column[1], column[2]
+	}
 	var pend time.Time
 	var p int
 	var f *file
@@ -87,6 +91,9 @@ func readRequests(reader io.Reader, duration time.Duration) {
 	clients = make(clientMap)
 	r := csv.NewReader(reader)
 	r.Comma = '\t'
+	if comma != "" {
+		r.Comma = []rune(comma)[0]
+	}
 	for {
 		rec, err := r.Read()
 		if err == io.EOF {
@@ -95,23 +102,24 @@ func readRequests(reader io.Reader, duration time.Duration) {
 			panic(err)
 		}
 
-		if f, ok = files[rec[1]]; !ok {
-			files[rec[1]] = &file{
-				id:                    rec[1],
+		if f, ok = files[rec[colFile]]; !ok {
+			files[rec[colFile]] = &file{
+				id:                    rec[colFile],
 				popularityPeriod:      make([]int, 1),
 				popularityAccumulated: make([]int, 1),
 			}
-			f = files[rec[1]]
+			f = files[rec[colFile]]
 		}
-		if c, ok = clients[rec[2]]; !ok {
-			clients[rec[2]] = &client{
-				id:                    rec[2],
+		if c, ok = clients[rec[colClient]]; !ok {
+			clients[rec[colClient]] = &client{
+				id:                    rec[colClient],
 				popularityPeriod:      []popularities{make(popularities)},
 				popularityAccumulated: []popularities{make(popularities)},
 			}
-			c = clients[rec[2]]
+			c = clients[rec[colClient]]
 		}
-		ti, err := strconv.ParseInt(rec[0], 10, 64)
+		tf, err := strconv.ParseFloat(rec[colTime], 64)
+		ti := int64(tf)
 		if err != nil {
 			panic(err)
 		}

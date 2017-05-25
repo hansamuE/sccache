@@ -15,7 +15,21 @@ func (pl periodList) clustering(clusterNum int) (clientList, []int) {
 	if clusteringModel.Learn() != nil {
 		panic("Clustering error!")
 	}
-	return trainingClientList, clusteringModel.Guesses()
+	guesses := clusteringModel.Guesses()
+
+	smallCells = make(smallCellList, len(clusteringModel.Centroids))
+	for i := range smallCells {
+		smallCells[i] = &smallCell{
+			id:                      i,
+			clients:                 make(clientMap),
+			popularitiesAccumulated: []popularities{make(popularities)},
+		}
+	}
+	for i, c := range trainingClientList {
+		c.assignTo(smallCells[guesses[i]])
+	}
+
+	return trainingClientList, guesses
 }
 
 func (pl periodList) getClientList() clientList {
