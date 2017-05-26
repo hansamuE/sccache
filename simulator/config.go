@@ -16,14 +16,15 @@ type config struct {
 
 type parameters struct {
 	IsTrained            bool
+	SimilarityFormula    similarityFormula
+	IsPeriodSimilarity   bool
 	TrainStartPeriod     int
 	TrainEndPeriod       int
+	ClusteringMethod     func(periodList, int) (clientList, []int)
 	ClusterNumber        int
 	CooperationThreshold float64
 	TestStartPeriod      int
 	CachePolicy          cachePolicy
-	SimilarityFormula    similarityFormula
-	IsPeriodSimilarity   bool
 	IsAssignClustering   bool
 	FilesLimit           int
 	FileSize             int
@@ -40,14 +41,15 @@ type configJSON struct {
 
 type parametersJSON struct {
 	IsTrained            bool    `json:"is_trained"`
+	SimilarityFormula    string  `json:"similarity_formula"`
+	IsPeriodSimilarity   bool    `json:"is_period_similarity"`
 	TrainStartPeriod     int     `json:"train_start_period"`
 	TrainEndPeriod       int     `json:"train_end_period"`
+	ClusteringMethod     string  `json:"clustering_method"`
 	ClusterNumber        int     `json:"cluster_number"`
 	CooperationThreshold float64 `json:"cooperation_threshold"`
 	TestStartPeriod      int     `json:"test_start_period"`
 	CachePolicy          string  `json:"cache_policy"`
-	SimilarityFormula    string  `json:"similarity_formula"`
-	IsPeriodSimilarity   bool    `json:"is_period_similarity"`
 	IsAssignClustering   bool    `json:"is_assign_clustering"`
 	FilesLimit           int     `json:"files_limit"`
 	FileSize             int     `json:"file_size"`
@@ -70,9 +72,27 @@ func (cjl configJSONList) toConfig() configList {
 		c.RequestsComma = cj.RequestsComma
 		for j, cpj := range cj.ParametersListJSON {
 			cp := &c.ParametersList[j]
+
+			switch cpj.SimilarityFormula {
+			case "exponential":
+				cp.SimilarityFormula = exponential
+			case "cosine":
+				cp.SimilarityFormula = cosine
+			default:
+				cp.SimilarityFormula = exponential
+			}
+
+			cp.IsPeriodSimilarity = cpj.IsPeriodSimilarity
 			cp.IsTrained = cpj.IsTrained
 			cp.TrainStartPeriod = cpj.TrainStartPeriod
 			cp.TrainStartPeriod = cpj.TrainEndPeriod
+
+			if cpj.ClusteringMethod == "similarity" {
+				cp.ClusteringMethod = clusteringWithSimilarity
+			} else {
+				cp.ClusteringMethod = clustering
+			}
+
 			cp.ClusterNumber = cpj.ClusterNumber
 			cp.CooperationThreshold = cpj.CooperationThreshold
 			cp.TestStartPeriod = cpj.TestStartPeriod
@@ -86,16 +106,6 @@ func (cjl configJSONList) toConfig() configList {
 				cp.CachePolicy = leastFrequentlyUsed
 			}
 
-			switch cpj.SimilarityFormula {
-			case "exponential":
-				cp.SimilarityFormula = exponential
-			case "cosine":
-				cp.SimilarityFormula = cosine
-			default:
-				cp.SimilarityFormula = exponential
-			}
-
-			cp.IsPeriodSimilarity = cpj.IsPeriodSimilarity
 			cp.IsAssignClustering = cpj.IsAssignClustering
 			cp.FilesLimit = cpj.FilesLimit
 			cp.FileSize = cpj.FileSize

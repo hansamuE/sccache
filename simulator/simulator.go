@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	formula       similarityFormula
 	cacheStorages cacheStorageList
 	periodNo      int
 )
@@ -39,10 +40,11 @@ func Simulate(path string) {
 		readRequestsFile(path, c.PeriodDuration, c.RequestsColumn, c.RequestsComma)
 
 		for j, cp := range configs[i].ParametersList {
+			formula = cp.SimilarityFormula
 			if !cp.IsTrained {
 				fmt.Println("Clustering...")
-				var trainPl periodList = periods[cp.TrainStartPeriod : cp.TrainEndPeriod+1]
-				cl, guesses := trainPl.clustering(cp.ClusterNumber)
+				var trainPL periodList = periods[cp.TrainStartPeriod : cp.TrainEndPeriod+1]
+				cl, guesses := clustering(trainPL, cp.ClusterNumber)
 				writeClusteringResultFiles(path, cl, guesses)
 			} else {
 				fmt.Println("Read Clustering Model...")
@@ -102,14 +104,14 @@ func writeClusteringResultFiles(path string, cl clientList, guesses []int) {
 	}
 }
 
-func readClustersFile(path string) {
-	f, err := os.Open(path + "clusters.csv")
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-	readClientsAssignment(f)
-}
+//func readClustersFile(path string) {
+//	f, err := os.Open(path + "clusters.csv")
+//	if err != nil {
+//		panic(err)
+//	}
+//	defer f.Close()
+//	readClientsAssignment(f)
+//}
 
 func writeResultFile(path string, pl periodList, cpj parametersJSON) {
 	if cpj.ResultFileName == "" {
@@ -243,7 +245,7 @@ func (c *client) assignWithClusteringModel() {
 }
 
 func (c *client) assignWithSimilarity(fn similarityFormula, filter fileList) {
-	sim := c.calSimilarity(fn, filter)
+	sim := c.calSimilarity(filter)
 	mi, ms := -1, 0.0
 	for i, s := range sim {
 		if s > ms {
@@ -279,7 +281,7 @@ func (scl smallCellList) arrangeCooperation(threshold float64, fn similarityForm
 		}
 	} else {
 		ok := make([]bool, len(scl))
-		sim := scl.calSimilarity(fn, nil)
+		sim := scl.calSimilarity(nil)
 		for i := 0; i < len(scl); i++ {
 			if ok[i] {
 				continue

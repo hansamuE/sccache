@@ -3,11 +3,12 @@ package simulator
 import "testing"
 
 func TestSmallCellList_calSimilarity(t *testing.T) {
-	t.Log("scl.calSimilarity:", smallCells.calSimilarity(exponential, nil))
+	formula = exponential
+	t.Log("scl.calSimilarity:", smallCells.calSimilarity(nil))
 }
 
 func TestFilePop_calSimilarity(t *testing.T) {
-	s := p1.calSimilarity(p2, exponential, nil)
+	s := p1.calSimilarity(p2, nil)
 	t.Log("popularities.calSimilarity:", s)
 }
 

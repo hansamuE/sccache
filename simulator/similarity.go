@@ -22,29 +22,29 @@ func cosine(fpn1 popularitiesNormalized, fpn2 popularitiesNormalized) float64 {
 	return ab / (math.Sqrt(a) * math.Sqrt(b))
 }
 
-func (scl smallCellList) calSimilarity(fn similarityFormula, filter fileList) [][]float64 {
+func (scl smallCellList) calSimilarity(filter fileList) [][]float64 {
 	s := make([][]float64, len(scl))
 	for i := range s {
 		s[i] = make([]float64, len(scl))
 	}
 	for i, sc := range scl {
 		for j := i + 1; j < len(scl); j++ {
-			s[i][j] = sc.popularitiesAccumulated[periodNo].calSimilarity(scl[j].popularitiesAccumulated[periodNo], fn, filter)
+			s[i][j] = sc.popularitiesAccumulated[periodNo].calSimilarity(scl[j].popularitiesAccumulated[periodNo], filter)
 			s[j][i] = s[i][j]
 		}
 	}
 	return s
 }
 
-func (c *client) calSimilarity(fn similarityFormula, filter fileList) []float64 {
+func (c *client) calSimilarity(filter fileList) []float64 {
 	s := make([]float64, len(cacheStorages))
 	for i, cs := range cacheStorages {
-		s[i] = c.popularityAccumulated[periodNo].calSimilarity(cs.popularitiesAccumulated[periodNo], fn, filter)
+		s[i] = c.popularityAccumulated[periodNo].calSimilarity(cs.popularitiesAccumulated[periodNo], filter)
 	}
 	return s
 }
 
-func (p popularities) calSimilarity(fp2 popularities, fn similarityFormula, filter fileList) float64 {
+func (p popularities) calSimilarity(fp2 popularities, filter fileList) float64 {
 	ifl := p.getFileList()
 	ifl = ifl.intersect(filter).intersect(fp2.getFileList())
 	if len(ifl) == 0 {
@@ -56,7 +56,7 @@ func (p popularities) calSimilarity(fp2 popularities, fn similarityFormula, filt
 		ifp[f] = p[f]
 		ifp2[f] = fp2[f]
 	}
-	return fn(ifp.normalize(), ifp2.normalize())
+	return formula(ifp.normalize(), ifp2.normalize())
 }
 
 func (p popularities) sum() (s int) {

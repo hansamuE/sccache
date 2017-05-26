@@ -9,7 +9,7 @@ const maxIterations = 50
 
 var clusteringModel *cluster.KMeans
 
-func (pl periodList) clustering(clusterNum int) (clientList, []int) {
+func clustering(pl periodList, clusterNum int) (clientList, []int) {
 	trainingSet, trainingClientList := pl.getClientFilePopularity()
 	clusteringModel = cluster.NewKMeans(clusterNum, maxIterations, trainingSet)
 	if clusteringModel.Learn() != nil {
@@ -78,4 +78,51 @@ func (c *client) getFilePopularity() []float64 {
 	}
 	base.NormalizePoint(data)
 	return data
+}
+
+func clusteringWithSimilarity(pl periodList, clusterNum int) (clientList, []int) {
+	trainingSet, trainingClientList := pl.getClientsSimilarity()
+	clusteringModel = cluster.NewKMeans(clusterNum, maxIterations, trainingSet)
+	if clusteringModel.Learn() != nil {
+		panic("Clustering error!")
+	}
+	guesses := clusteringModel.Guesses()
+
+	smallCells = make(smallCellList, len(clusteringModel.Centroids))
+	for i := range smallCells {
+		smallCells[i] = &smallCell{
+			id:                      i,
+			clients:                 make(clientMap),
+			popularitiesAccumulated: []popularities{make(popularities)},
+		}
+	}
+	for i, c := range trainingClientList {
+		c.assignTo(smallCells[guesses[i]])
+	}
+
+	return trainingClientList, guesses
+}
+
+func (pl periodList) getClientsSimilarity() ([][]float64, clientList) {
+	cl := pl.getClientList()
+	data := make([][]float64, len(cl))
+	cp := make([]popularities, len(cl))
+	for i, c := range cl {
+		for f, pop := range c.popularityAccumulated[pl[len(pl)-1].id] {
+			if popStart, ok := c.popularityAccumulated[pl[0].id][f]; ok {
+				pop -= popStart
+				pop += c.popularityPeriod[pl[0].id][f]
+			}
+			cp[i][f] = pop
+		}
+	}
+	for i := 0; i < len(cl); i++ {
+		data[i] = make([]float64, len(cl))
+		for j := 0; j < len(cl); j++ {
+			data[i][j] = cp[i].calSimilarity(cp[j], nil)
+			data[j][i] = data[i][j]
+		}
+	}
+	base.Normalize(data)
+	return data, cl
 }
