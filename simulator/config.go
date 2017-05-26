@@ -4,17 +4,17 @@ import "time"
 
 type configList []config
 type configJSONList []configJSON
-type ParametersList []Parameters
-type ParametersListJSON []ParametersJSON
+type parametersList []parameters
+type parametersListJSON []parametersJSON
 
 type config struct {
 	PeriodDuration time.Duration
 	RequestsColumn []int
 	RequestsComma  string
-	ParametersList
+	ParametersList parametersList
 }
 
-type Parameters struct {
+type parameters struct {
 	IsTrained            bool
 	TrainStartPeriod     int
 	TrainEndPeriod       int
@@ -32,13 +32,13 @@ type Parameters struct {
 }
 
 type configJSON struct {
-	PeriodDuration     string `json:"period_duration"`
-	RequestsColumn     []int  `json:"requests_column"`
-	RequestsComma      string `json:"requests_comma"`
-	ParametersListJSON `json:"parameters_list"`
+	PeriodDuration     string             `json:"period_duration"`
+	RequestsColumn     []int              `json:"requests_column"`
+	RequestsComma      string             `json:"requests_comma"`
+	ParametersListJSON parametersListJSON `json:"parameters_list"`
 }
 
-type ParametersJSON struct {
+type parametersJSON struct {
 	IsTrained            bool    `json:"is_trained"`
 	TrainStartPeriod     int     `json:"train_start_period"`
 	TrainEndPeriod       int     `json:"train_end_period"`
@@ -60,7 +60,7 @@ func (cjl configJSONList) toConfig() configList {
 	cl := make(configList, len(cjl))
 	for i, cj := range cjl {
 		c := &cl[i]
-		c.ParametersList = make(ParametersList, len(cj.ParametersListJSON))
+		c.ParametersList = make(parametersList, len(cj.ParametersListJSON))
 		c.PeriodDuration, err = time.ParseDuration(cj.PeriodDuration)
 		if err != nil {
 			panic(err)

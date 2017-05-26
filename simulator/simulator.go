@@ -111,7 +111,7 @@ func readClustersFile(path string) {
 	readClientsAssignment(f)
 }
 
-func writeResultFile(path string, pl periodList, cpj ParametersJSON) {
+func writeResultFile(path string, pl periodList, cpj parametersJSON) {
 	if cpj.ResultFileName == "" {
 		cpj.ResultFileName = path + "learn" + strconv.Itoa(cpj.TrainStartPeriod) + "to" + strconv.Itoa(cpj.TrainEndPeriod) + "_" + cpj.SimilarityFormula + "_" + strconv.FormatBool(cpj.IsPeriodSimilarity) + "_" + cpj.CachePolicy + "_" + strconv.Itoa(cpj.FilesLimit) + "_" + strconv.Itoa(cpj.FileSize) + "_" + strconv.Itoa(cpj.CacheStorageSize) + ".csv"
 	}
@@ -147,7 +147,7 @@ func writeResultFile(path string, pl periodList, cpj ParametersJSON) {
 	}
 }
 
-func preProcess(cp Parameters) {
+func preProcess(cp parameters) {
 	smallCells.arrangeCooperation(cp.CooperationThreshold, cp.SimilarityFormula)
 	for _, f := range files {
 		f.size = cp.FileSize
@@ -158,7 +158,7 @@ func preProcess(cp Parameters) {
 	}
 }
 
-func (pl periodList) serve(cp Parameters) {
+func (pl periodList) serve(cp parameters) {
 	fmt.Println("Start Testing With Config:", cp)
 	for pn, p := range pl {
 		filesLimit := cp.FilesLimit
@@ -175,7 +175,7 @@ func (pl periodList) serve(cp Parameters) {
 	fmt.Println("All Periods Tested")
 }
 
-func (p *period) serve(cp Parameters, filter fileList) {
+func (p *period) serve(cp parameters, filter fileList) {
 	periodNo = p.id
 	for _, r := range p.requests {
 		t, f, c := r.time, r.file, r.client
@@ -202,7 +202,7 @@ func (p *period) serve(cp Parameters, filter fileList) {
 	}
 }
 
-func (p *period) endPeriod(cp Parameters, filter fileList) {
+func (p *period) endPeriod(cp parameters, filter fileList) {
 	p.calRate()
 	for _, c := range p.newClients {
 		c.assign(cp, filter)
@@ -226,7 +226,7 @@ func reset() {
 	}
 }
 
-func (c *client) assign(cp Parameters, filter fileList) {
+func (c *client) assign(cp parameters, filter fileList) {
 	if cp.IsAssignClustering {
 		c.assignWithClusteringModel()
 	} else {
