@@ -76,7 +76,7 @@ func readConfigs(reader io.Reader) {
 	configs = configJSONs.toConfig()
 }
 
-func readRequests(reader io.Reader, duration time.Duration, column []int, comma string) {
+func readRequests(reader io.Reader, duration time.Duration, column []int, comma rune) {
 	var colTime, colFile, colClient = 0, 1, 2
 	if len(column) != 0 {
 		colTime, colFile, colClient = column[0], column[1], column[2]
@@ -90,10 +90,7 @@ func readRequests(reader io.Reader, duration time.Duration, column []int, comma 
 	files = make(fileMap)
 	clients = make(clientMap)
 	r := csv.NewReader(reader)
-	r.Comma = '\t'
-	if comma != "" {
-		r.Comma = []rune(comma)[0]
-	}
+	r.Comma = comma
 	for {
 		rec, err := r.Read()
 		if err == io.EOF {

@@ -8,10 +8,11 @@ type parametersList []parameters
 type parametersListJSON []parametersJSON
 
 type config struct {
-	PeriodDuration time.Duration
-	RequestsColumn []int
-	RequestsComma  string
-	ParametersList parametersList
+	RequestsFileName string
+	PeriodDuration   time.Duration
+	RequestsColumn   []int
+	RequestsComma    rune
+	ParametersList   parametersList
 }
 
 type parameters struct {
@@ -22,18 +23,19 @@ type parameters struct {
 	TrainEndPeriod       int
 	ClusterNumber        int
 	CooperationThreshold float64
-	TestStartPeriod      int
-	CachePolicy          cachePolicy
-	IsAssignClustering   bool
-	IsOnlineLearning	bool
-	ClusteringMethod     func(periodList, int) (clientList, []int)
 	FilesLimit           int
 	FileSize             int
 	CacheStorageSize     int
+	TestStartPeriod      int
+	CachePolicy          cachePolicy
+	IsAssignClustering   bool
+	IsOnlineLearning     bool
+	ClusteringMethod     func(periodList, int) (clientList, []int)
 	ResultFileName       string
 }
 
 type configJSON struct {
+	RequestsFileName   string             `json:"requests_file_name"`
 	PeriodDuration     string             `json:"period_duration"`
 	RequestsColumn     []int              `json:"requests_column"`
 	RequestsComma      string             `json:"requests_comma"`
@@ -48,14 +50,14 @@ type parametersJSON struct {
 	TrainEndPeriod       int     `json:"train_end_period"`
 	ClusterNumber        int     `json:"cluster_number"`
 	CooperationThreshold float64 `json:"cooperation_threshold"`
-	TestStartPeriod      int     `json:"test_start_period"`
-	CachePolicy          string  `json:"cache_policy"`
-	IsAssignClustering   bool    `json:"is_assign_clustering"`
-	IsOnlineLearning	bool        `json:"is_online_learning"`
-	ClusteringMethod     string  `json:"clustering_method"`
 	FilesLimit           int     `json:"files_limit"`
 	FileSize             int     `json:"file_size"`
 	CacheStorageSize     int     `json:"cache_storage_size"`
+	TestStartPeriod      int     `json:"test_start_period"`
+	CachePolicy          string  `json:"cache_policy"`
+	IsAssignClustering   bool    `json:"is_assign_clustering"`
+	IsOnlineLearning     bool    `json:"is_online_learning"`
+	ClusteringMethod     string  `json:"clustering_method"`
 	ResultFileName       string  `json:"result_file_name"`
 }
 
@@ -65,13 +67,27 @@ func (cjl configJSONList) toConfig() configList {
 	for i, cj := range cjl {
 		c := &cl[i]
 		c.ParametersList = make(parametersList, len(cj.ParametersListJSON))
+
+		if cj.RequestsFileName == "" {
+			c.RequestsFileName = "requests.csv"
+		} else {
+			c.RequestsFileName = cj.RequestsFileName
+		}
+
 		c.PeriodDuration, err = time.ParseDuration(cj.PeriodDuration)
 		if err != nil {
 			panic(err)
 		}
+
 		c.RequestsColumn = make([]int, len(cj.RequestsColumn))
 		copy(c.RequestsColumn, cj.RequestsColumn)
-		c.RequestsComma = cj.RequestsComma
+
+		if cj.RequestsComma == "" {
+			c.RequestsComma = '\t'
+		} else {
+			c.RequestsComma = []rune(cj.RequestsComma)[0]
+		}
+
 		for j, cpj := range cj.ParametersListJSON {
 			cp := &c.ParametersList[j]
 
@@ -87,9 +103,12 @@ func (cjl configJSONList) toConfig() configList {
 			cp.IsPeriodSimilarity = cpj.IsPeriodSimilarity
 			cp.IsTrained = cpj.IsTrained
 			cp.TrainStartPeriod = cpj.TrainStartPeriod
-			cp.TrainStartPeriod = cpj.TrainEndPeriod
+			cp.TrainEndPeriod = cpj.TrainEndPeriod
 			cp.ClusterNumber = cpj.ClusterNumber
 			cp.CooperationThreshold = cpj.CooperationThreshold
+			cp.FilesLimit = cpj.FilesLimit
+			cp.FileSize = cpj.FileSize
+			cp.CacheStorageSize = cpj.CacheStorageSize
 			cp.TestStartPeriod = cpj.TestStartPeriod
 
 			switch cpj.CachePolicy {
@@ -112,9 +131,6 @@ func (cjl configJSONList) toConfig() configList {
 				cp.ClusteringMethod = clustering
 			}
 
-			cp.FilesLimit = cpj.FilesLimit
-			cp.FileSize = cpj.FileSize
-			cp.CacheStorageSize = cpj.CacheStorageSize
 			cp.ResultFileName = cpj.ResultFileName
 		}
 	}
