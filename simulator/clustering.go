@@ -32,6 +32,22 @@ func clustering(pl periodList, clusterNum int) (clientList, []int) {
 	return trainingClientList, guesses
 }
 
+func onlineLearn(cl clientList) {
+	stream := make(chan base.Datapoint, 100)
+	errors := make(chan error, 20)
+	go clusteringModel.OnlineLearn(errors, stream, func(theta [][]float64) {})
+	go func() {
+		for _, c := range cl {
+			stream <- base.Datapoint{X: c.getFilePopularity()}
+		}
+		close(stream)
+	}()
+	err, more := <-errors
+	if err != nil || more != false {
+		panic("Online Learning error!")
+	}
+}
+
 func (pl periodList) getClientList() clientList {
 	ucm := make(clientMap)
 	for _, p := range pl {

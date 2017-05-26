@@ -20,12 +20,13 @@ type parameters struct {
 	IsPeriodSimilarity   bool
 	TrainStartPeriod     int
 	TrainEndPeriod       int
-	ClusteringMethod     func(periodList, int) (clientList, []int)
 	ClusterNumber        int
 	CooperationThreshold float64
 	TestStartPeriod      int
 	CachePolicy          cachePolicy
 	IsAssignClustering   bool
+	IsOnlineLearning	bool
+	ClusteringMethod     func(periodList, int) (clientList, []int)
 	FilesLimit           int
 	FileSize             int
 	CacheStorageSize     int
@@ -45,12 +46,13 @@ type parametersJSON struct {
 	IsPeriodSimilarity   bool    `json:"is_period_similarity"`
 	TrainStartPeriod     int     `json:"train_start_period"`
 	TrainEndPeriod       int     `json:"train_end_period"`
-	ClusteringMethod     string  `json:"clustering_method"`
 	ClusterNumber        int     `json:"cluster_number"`
 	CooperationThreshold float64 `json:"cooperation_threshold"`
 	TestStartPeriod      int     `json:"test_start_period"`
 	CachePolicy          string  `json:"cache_policy"`
 	IsAssignClustering   bool    `json:"is_assign_clustering"`
+	IsOnlineLearning	bool        `json:"is_online_learning"`
+	ClusteringMethod     string  `json:"clustering_method"`
 	FilesLimit           int     `json:"files_limit"`
 	FileSize             int     `json:"file_size"`
 	CacheStorageSize     int     `json:"cache_storage_size"`
@@ -86,13 +88,6 @@ func (cjl configJSONList) toConfig() configList {
 			cp.IsTrained = cpj.IsTrained
 			cp.TrainStartPeriod = cpj.TrainStartPeriod
 			cp.TrainStartPeriod = cpj.TrainEndPeriod
-
-			if cpj.ClusteringMethod == "similarity" {
-				cp.ClusteringMethod = clusteringWithSimilarity
-			} else {
-				cp.ClusteringMethod = clustering
-			}
-
 			cp.ClusterNumber = cpj.ClusterNumber
 			cp.CooperationThreshold = cpj.CooperationThreshold
 			cp.TestStartPeriod = cpj.TestStartPeriod
@@ -107,6 +102,16 @@ func (cjl configJSONList) toConfig() configList {
 			}
 
 			cp.IsAssignClustering = cpj.IsAssignClustering
+			cp.IsOnlineLearning = cpj.IsOnlineLearning
+
+			if cpj.ClusteringMethod == "similarity" {
+				cp.ClusteringMethod = clusteringWithSimilarity
+				cp.IsAssignClustering = false
+				cp.IsOnlineLearning = false
+			} else {
+				cp.ClusteringMethod = clustering
+			}
+
 			cp.FilesLimit = cpj.FilesLimit
 			cp.FileSize = cpj.FileSize
 			cp.CacheStorageSize = cpj.CacheStorageSize

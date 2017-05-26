@@ -189,6 +189,7 @@ func (p *period) serve(cp parameters, filter fileList) {
 				cacheStorages.assignNewClient(c, f)
 				p.newClients = append(p.newClients, c)
 			} else {
+				onlineLearn(clientList{c})
 				c.assign(cp, filter)
 			}
 		}
@@ -206,6 +207,9 @@ func (p *period) serve(cp parameters, filter fileList) {
 
 func (p *period) endPeriod(cp parameters, filter fileList) {
 	p.calRate()
+	if cp.IsOnlineLearning {
+		onlineLearn(p.newClients)
+	}
 	for _, c := range p.newClients {
 		c.assign(cp, filter)
 	}
