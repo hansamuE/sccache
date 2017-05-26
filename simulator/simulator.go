@@ -55,6 +55,8 @@ func Simulate(path string) {
 			pl.postProcess()
 
 			writeResultFile(path, pl, configJSONs[i].ParametersListJSON[j])
+
+			reset()
 		}
 	}
 }
@@ -211,6 +213,16 @@ func (p *period) endPeriod(cp Parameters, filter fileList) {
 func (pl periodList) postProcess() {
 	for _, p := range pl {
 		fmt.Println(p.end, "\t", p.dlRate)
+	}
+}
+
+func reset() {
+	for _, c := range clients {
+		c.smallCell = nil
+	}
+	for _, p := range periods {
+		p.newClients = make(clientList, 0)
+		p.stats = stats{}
 	}
 }
 
