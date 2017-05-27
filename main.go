@@ -4,6 +4,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/hansamuE/sccache/filter"
 	"github.com/hansamuE/sccache/generator"
 	"github.com/hansamuE/sccache/simulator"
 )
@@ -31,6 +32,12 @@ func main() {
 			panic(err)
 		}
 		generator.GenerateRequests(args[2], userNum)
+	case "fil":
+		err, path, inputFileName, comma, column, isURL, fileLimit, timeThreshold := filter.ReadArgs(args)
+		if err != nil {
+			return
+		}
+		filter.FilterLog(path, inputFileName, comma, column, isURL, fileLimit, timeThreshold)
 	default:
 		return
 	}
