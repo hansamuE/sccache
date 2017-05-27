@@ -17,14 +17,7 @@ func clustering(pl periodList, clusterNum int) (clientList, []int) {
 	}
 	guesses := clusteringModel.Guesses()
 
-	smallCells = make(smallCellList, len(clusteringModel.Centroids))
-	for i := range smallCells {
-		smallCells[i] = &smallCell{
-			id:                      i,
-			clients:                 make(clientMap),
-			popularitiesAccumulated: []popularities{make(popularities)},
-		}
-	}
+	smallCells = newSmallCells(len(clusteringModel.Centroids))
 	for i, c := range trainingClientList {
 		c.assignTo(smallCells[guesses[i]])
 	}
@@ -104,14 +97,7 @@ func clusteringWithSimilarity(pl periodList, clusterNum int) (clientList, []int)
 	}
 	guesses := clusteringModel.Guesses()
 
-	smallCells = make(smallCellList, len(clusteringModel.Centroids))
-	for i := range smallCells {
-		smallCells[i] = &smallCell{
-			id:                      i,
-			clients:                 make(clientMap),
-			popularitiesAccumulated: []popularities{make(popularities)},
-		}
-	}
+	smallCells = newSmallCells(len(clusteringModel.Centroids))
 	for i, c := range trainingClientList {
 		c.assignTo(smallCells[guesses[i]])
 	}

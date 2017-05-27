@@ -11,6 +11,7 @@ var (
 	formula       similarityFormula
 	cacheStorages cacheStorageList
 	periodNo      int
+	newUserNum    []int
 )
 
 type stats struct {
@@ -39,6 +40,7 @@ func Simulate(path string) {
 		readRequestsFile(path, c)
 
 		for j, cp := range configs[i].ParametersList {
+			cpj := configJSONs[i].ParametersListJSON[j]
 			formula = cp.SimilarityFormula
 			if !cp.IsTrained {
 				fmt.Println("Clustering...")
@@ -48,10 +50,10 @@ func Simulate(path string) {
 				}
 				var trainPL periodList = periods[cp.TrainStartPeriod:trainEndPeriod]
 				cl, guesses := clustering(trainPL, cp.ClusterNumber)
-				writeClusteringResultFiles(path, c, cp, cl, guesses)
+				writeClusteringResultFiles(path, c, cpj, cl, guesses)
 			} else {
 				fmt.Println("Read Clustering Model...")
-				readClusteringResultFiles(path, c, cp)
+				readClusteringResultFiles(path, c, cpj)
 			}
 
 			preProcess(cp)
@@ -63,7 +65,7 @@ func Simulate(path string) {
 			pl.serve(cp)
 			pl.postProcess()
 
-			writeResultFile(path, c, configJSONs[i].ParametersListJSON[j], pl)
+			writeResultFile(path, c, cpj, pl)
 
 			reset()
 		}
@@ -89,15 +91,17 @@ func readRequestsFile(path string, config config) {
 	readRequests(f, config.PeriodDuration, config.RequestsColumn, config.RequestsComma)
 }
 
-func readClusteringResultFiles(path string, c config, cp parameters) {
+func readClusteringResultFiles(path string, c config, cpj parametersJSON) {
 	model := path + c.RequestsFileName +
-		"_clustering_model_" + strconv.Itoa(cp.TrainStartPeriod) +
-		"_" + strconv.Itoa(cp.TrainEndPeriod) +
-		"_" + strconv.Itoa(cp.ClusterNumber) + ".json"
+		"_clustering_model_" + cpj.ClusteringMethod +
+		"_" + strconv.Itoa(cpj.TrainStartPeriod) +
+		"_" + strconv.Itoa(cpj.TrainEndPeriod) +
+		"_" + strconv.Itoa(cpj.ClusterNumber) + ".json"
 	f, err := os.Open(path + c.RequestsFileName +
-		"_clustering_result_" + strconv.Itoa(cp.TrainStartPeriod) +
-		"_" + strconv.Itoa(cp.TrainEndPeriod) +
-		"_" + strconv.Itoa(cp.ClusterNumber) + ".csv")
+		"_clustering_result_" + cpj.ClusteringMethod +
+		"_" + strconv.Itoa(cpj.TrainStartPeriod) +
+		"_" + strconv.Itoa(cpj.TrainEndPeriod) +
+		"_" + strconv.Itoa(cpj.ClusterNumber) + ".csv")
 	if err != nil {
 		panic(err)
 	}
@@ -105,15 +109,17 @@ func readClusteringResultFiles(path string, c config, cp parameters) {
 	readClusteringResult(model, f)
 }
 
-func writeClusteringResultFiles(path string, c config, cp parameters, cl clientList, guesses []int) {
+func writeClusteringResultFiles(path string, c config, cpj parametersJSON, cl clientList, guesses []int) {
 	clusteringModel.PersistToFile(path + c.RequestsFileName +
-		"_clustering_model_" + strconv.Itoa(cp.TrainStartPeriod) +
-		"_" + strconv.Itoa(cp.TrainEndPeriod) +
-		"_" + strconv.Itoa(cp.ClusterNumber) + ".json")
+		"_clustering_model_" + cpj.ClusteringMethod +
+		"_" + strconv.Itoa(cpj.TrainStartPeriod) +
+		"_" + strconv.Itoa(cpj.TrainEndPeriod) +
+		"_" + strconv.Itoa(cpj.ClusterNumber) + ".json")
 	f, err := os.Create(path + c.RequestsFileName +
-		"_clustering_result_" + strconv.Itoa(cp.TrainStartPeriod) +
-		"_" + strconv.Itoa(cp.TrainEndPeriod) +
-		"_" + strconv.Itoa(cp.ClusterNumber) + ".csv")
+		"_clustering_result_" + cpj.ClusteringMethod +
+		"_" + strconv.Itoa(cpj.TrainStartPeriod) +
+		"_" + strconv.Itoa(cpj.TrainEndPeriod) +
+		"_" + strconv.Itoa(cpj.ClusterNumber) + ".csv")
 	if err != nil {
 		panic(err)
 	}
@@ -134,7 +140,7 @@ func writeClusteringResultFiles(path string, c config, cp parameters, cl clientL
 
 func writeResultFile(path string, c config, cpj parametersJSON, pl periodList) {
 	if cpj.ResultFileName == "" {
-		cpj.ResultFileName = path + c.RequestsFileName +
+		cpj.ResultFileName = c.RequestsFileName +
 			"_result_" + cpj.SimilarityFormula +
 			"_" + strconv.FormatBool(cpj.IsPeriodSimilarity) +
 			"_" + strconv.Itoa(cpj.TrainStartPeriod) +
@@ -150,21 +156,25 @@ func writeResultFile(path string, c config, cpj parametersJSON, pl periodList) {
 			"_" + strconv.FormatBool(cpj.IsOnlineLearning) +
 			"_" + cpj.ClusteringMethod + ".csv"
 	}
-	f, err := os.Create(cpj.ResultFileName)
+	f, err := os.Create(path + cpj.ResultFileName)
 	if err != nil {
 		panic(err)
 	}
 	defer f.Close()
 
-	f.WriteString("Download Rate:\n")
+	f.WriteString(fmt.Sprint(cpj) + "\n")
+
+	f.WriteString("\nOverall Download Rate: " + strconv.FormatFloat(pl.calRate(), 'f', 5, 64) + "\n")
+
+	f.WriteString("\nDownload Rate:\n")
 	for _, p := range pl {
 		f.WriteString(p.end.Format("2006-01-02 15") + "\t" + strconv.FormatFloat(p.dlRate, 'f', 5, 64) + "\n")
 	}
 
 	f.WriteString("\nFiles \\ Small Cells\n\t")
-	for i := 0; i < len(smallCells); i++ {
-		f.WriteString("cell" + strconv.Itoa(i+1))
-		if i != len(smallCells) {
+	for i, sc := range smallCells {
+		f.WriteString("cell" + strconv.Itoa(sc.id+1))
+		if i != len(smallCells)-1 {
 			f.WriteString("\t")
 		} else {
 			f.WriteString("\n")
@@ -172,18 +182,30 @@ func writeResultFile(path string, c config, cpj parametersJSON, pl periodList) {
 	}
 	for i, file := range filesList {
 		f.WriteString("file" + strconv.Itoa(i+1) + "\t")
-		for _, sc := range smallCells {
-			f.WriteString(strconv.Itoa(sc.popularitiesAccumulated[pl[len(pl)-1].id][file]))
-			if i != len(filesList)-1 {
+		for j, sc := range smallCells {
+			pop := sc.popularitiesAccumulated[pl[len(pl)-1].id][file]
+			pop -= sc.popularitiesAccumulated[pl[0].id][file]
+			pop += sc.popularitiesPeriod[pl[0].id][file]
+			f.WriteString(strconv.Itoa(pop))
+			if j != len(smallCells)-1 {
 				f.WriteString("\t")
 			} else {
 				f.WriteString("\n")
 			}
 		}
 	}
-	f.WriteString("users\t")
+	f.WriteString("\nusers\t")
 	for i, sc := range smallCells {
 		f.WriteString(strconv.Itoa(len(sc.clients)))
+		if i != len(smallCells)-1 {
+			f.WriteString("\t")
+		} else {
+			f.WriteString("\n")
+		}
+	}
+	f.WriteString("new\t")
+	for i, sc := range smallCells {
+		f.WriteString(strconv.Itoa(newUserNum[sc.id]))
 		if i != len(smallCells)-1 {
 			f.WriteString("\t")
 		} else {
@@ -209,6 +231,8 @@ func preProcess(cp parameters) {
 		cs.size = cp.CacheStorageSize
 		cs.space = cs.size
 	}
+
+	newUserNum = make([]int, len(smallCells))
 }
 
 func (pl periodList) serve(cp parameters) {
@@ -240,8 +264,11 @@ func (p *period) serve(cp parameters, filter fileList) {
 				cacheStorages.assignNewClient(c, f)
 				p.newClients = append(p.newClients, c)
 			} else {
-				onlineLearn(clientList{c})
+				if cp.IsOnlineLearning {
+					onlineLearn(clientList{c})
+				}
 				c.assign(cp, filter)
+				newUserNum[c.smallCell.id]++
 			}
 		}
 
@@ -263,6 +290,7 @@ func (p *period) endPeriod(cp parameters, filter fileList) {
 	}
 	for _, c := range p.newClients {
 		c.assign(cp, filter)
+		newUserNum[c.smallCell.id]++
 	}
 	fmt.Println("End Period:", p.end)
 }

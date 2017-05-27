@@ -61,6 +61,7 @@ type period struct {
 type smallCell struct {
 	id                      int
 	clients                 map[string]*client
+	popularitiesPeriod      []popularities
 	popularitiesAccumulated []popularities
 	cacheStorage            *cacheStorage
 }
@@ -187,7 +188,11 @@ func readClientsAssignment(reader io.Reader) {
 			panic(err)
 		}
 
-		smallCells = append(smallCells, &smallCell{id: len(smallCells), clients: make(map[string]*client), popularitiesAccumulated: []popularities{make(popularities)}})
+		smallCells = append(smallCells, &smallCell{id: len(smallCells),
+			clients:                 make(map[string]*client),
+			popularitiesPeriod:      []popularities{make(popularities)},
+			popularitiesAccumulated: []popularities{make(popularities)},
+		})
 		for _, cid := range rec {
 			clients[cid].assignTo(smallCells[len(smallCells)-1])
 		}
@@ -197,14 +202,7 @@ func readClientsAssignment(reader io.Reader) {
 func readClusteringResult(model string, result io.Reader) {
 	clusteringModel = cluster.NewKMeans(0, maxIterations, nil)
 	clusteringModel.RestoreFromFile(model)
-	smallCells = make(smallCellList, len(clusteringModel.Centroids))
-	for i := range smallCells {
-		smallCells[i] = &smallCell{
-			id:                      i,
-			clients:                 make(clientMap),
-			popularitiesAccumulated: []popularities{make(popularities)},
-		}
-	}
+	smallCells = newSmallCells(len(clusteringModel.Centroids))
 	r := csv.NewReader(result)
 	r.Comma = '\t'
 	for {
@@ -223,6 +221,19 @@ func readClusteringResult(model string, result io.Reader) {
 	}
 }
 
+func newSmallCells(n int) smallCellList {
+	scs := make(smallCellList, n)
+	for i := 0; i < n; i++ {
+		scs[i] = &smallCell{
+			id:                      i,
+			clients:                 make(clientMap),
+			popularitiesPeriod:      []popularities{make(popularities)},
+			popularitiesAccumulated: []popularities{make(popularities)},
+		}
+	}
+	return scs
+}
+
 func (c *client) assignTo(sc *smallCell) {
 	osc := c.smallCell
 	if osc != nil {
@@ -234,15 +245,22 @@ func (c *client) assignTo(sc *smallCell) {
 	for p, fp := range c.popularityAccumulated {
 		if len(sc.popularitiesAccumulated)-1 < p {
 			sc.popularitiesAccumulated = append(sc.popularitiesAccumulated, make(popularities))
+			sc.popularitiesPeriod = append(sc.popularitiesPeriod, make(popularities))
 		}
 		for k, v := range fp {
 			if osc != nil {
 				osc.popularitiesAccumulated[p][k] -= v
+				if _, ok := osc.popularitiesPeriod[p][k]; ok {
+					osc.popularitiesPeriod[p][k] -= v
+				}
 				if osc.cacheStorage != nil {
 					osc.cacheStorage.popularitiesAccumulated[p][k] -= v
 				}
 			}
 			sc.popularitiesAccumulated[p][k] += v
+			if _, ok := sc.popularitiesPeriod[p][k]; ok {
+				sc.popularitiesPeriod[p][k] += v
+			}
 			if sc.cacheStorage != nil {
 				sc.cacheStorage.popularitiesAccumulated[p][k] += v
 			}
