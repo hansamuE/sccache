@@ -12,6 +12,8 @@ var (
 	cacheStorages cacheStorageList
 	periodNo      int
 	newUserNum    []int
+	dlFreq        [][]int
+	dlFreqAll     []int
 )
 
 type stats struct {
@@ -169,7 +171,7 @@ func writeResultFile(path string, c config, cpj parametersJSON, pl periodList) {
 
 	f.WriteString("\nDownload Rate:\n")
 	for _, p := range pl {
-		f.WriteString(p.end.Format("2006-01-02 15") + "\t" + strconv.FormatFloat(p.dlRate, 'f', 5, 64) + "\n")
+		f.WriteString(p.end.Format("2006-01-02 15:04") + "\t" + strconv.FormatFloat(p.dlRate, 'f', 5, 64) + "\n")
 	}
 
 	f.WriteString("\nFiles \\ Small Cells\n\t")
@@ -213,6 +215,32 @@ func writeResultFile(path string, c config, cpj parametersJSON, pl periodList) {
 			f.WriteString("\n")
 		}
 	}
+	f.WriteString("addict\t")
+	for i, sc := range smallCells {
+		count := 0
+		for _, c := range sc.clients {
+			if len(c.popularityAccumulated[pl[len(pl)-1].id]) >= int(float64(len(filesList))*0.8) {
+				count++
+			}
+		}
+		f.WriteString(strconv.Itoa(count))
+		if i != len(smallCells)-1 {
+			f.WriteString("\t")
+		} else {
+			f.WriteString("\n")
+		}
+	}
+	f.WriteString("\nDL\t")
+	for _, sc := range smallCells {
+		f.WriteString(strconv.Itoa(len(dlFreq[sc.id])-1) + "\t")
+	}
+	f.WriteString(strconv.Itoa(len(dlFreqAll)-1) + "\n")
+
+	f.WriteString("\nDownload Frequency:\n")
+	for i := range dlFreq {
+		f.WriteString(strconv.Itoa(i+1) + ": " + fmt.Sprintln(dlFreq[i]))
+	}
+	f.WriteString("all: " + fmt.Sprintln(dlFreqAll))
 
 	f.WriteString("\nCooperation:\n")
 	for _, cs := range cacheStorages {
@@ -234,6 +262,11 @@ func preProcess(cp parameters) {
 	}
 
 	newUserNum = make([]int, len(smallCells))
+	dlFreq = make([][]int, len(smallCells))
+	for i := range dlFreq {
+		dlFreq[i] = make([]int, 1)
+	}
+	dlFreqAll = make([]int, 1)
 }
 
 func (pl periodList) serve(cp parameters) {
@@ -281,6 +314,14 @@ func (p *period) serve(cp parameters, filter fileList) {
 		cs.downloaded += f.size - sizeCached
 		p.served += sizeCached
 		p.downloaded += f.size - sizeCached
+
+		if f.size-sizeCached > 0 {
+			dlFreq[c.smallCell.id] = append(dlFreq[c.smallCell.id], 0)
+			dlFreqAll = append(dlFreqAll, 0)
+		} else {
+			dlFreq[c.smallCell.id][len(dlFreq[c.smallCell.id])-1]++
+			dlFreqAll[len(dlFreqAll)-1]++
+		}
 	}
 }
 
