@@ -25,13 +25,18 @@ func clustering(pl periodList, clusterNum int) (clientList, []int) {
 	return trainingClientList, guesses
 }
 
-func onlineLearn(cl clientList) {
-	stream := make(chan base.Datapoint, 100)
-	errors := make(chan error, 20)
-	go clusteringModel.OnlineLearn(errors, stream, func(theta [][]float64) {})
+func onlineLearn(alpha float64, cl clientList) {
+	clusteringModel.UpdateLearningRate(alpha)
+	stream := make(chan base.Datapoint)
+	errors := make(chan error)
+	guess := make(chan int)
+	go clusteringModel.OnlineLearn(errors, stream, func(theta [][]float64) {
+		guess <- int(theta[0][0])
+	})
 	go func() {
 		for _, c := range cl {
-			stream <- base.Datapoint{X: c.getFilePopularity()}
+			stream <- base.Datapoint{X: c.getFilePopularity(periods[:periodNo+1])}
+			c.assignTo(smallCells[<-guess])
 		}
 		close(stream)
 	}()
@@ -59,30 +64,31 @@ func (pl periodList) getClientFilePopularity() ([][]float64, clientList) {
 	cl := pl.getClientList()
 	data := make([][]float64, len(cl))
 	for i, c := range cl {
-		data[i] = make([]float64, len(filesList))
-		for j, f := range filesList {
-			pop := 0
-			if popEnd, ok := c.popularityAccumulated[pl[len(pl)-1].id][f]; ok {
-				pop = popEnd
-				if popStart, ok := c.popularityAccumulated[pl[0].id][f]; ok {
-					pop -= popStart
-					pop += c.popularityPeriod[pl[0].id][f]
-				}
-			}
-			data[i][j] = float64(pop)
-		}
+		data[i] = c.getFilePopularity(pl)
+		//data[i] = make([]float64, len(filesList))
+		//for j, f := range filesList {
+		//	data[i][j] = float64(pop)
+		//}
 	}
-	base.Normalize(data)
+	//base.Normalize(data)
 	return data, cl
 }
 
-func (c *client) getFilePopularity() []float64 {
+func (c *client) getFilePopularity(pl periodList) []float64 {
 	data := make([]float64, len(filesList))
 	for i, f := range filesList {
 		pop := 0
-		if popAcc, ok := c.popularityAccumulated[periodNo][f]; ok {
-			pop = popAcc
+		if popEnd, ok := c.popularityAccumulated[pl[len(pl)-1].id][f]; ok {
+			pop = popEnd
+			if popStart, ok := c.popularityAccumulated[pl[0].id][f]; ok {
+				pop -= popStart
+				pop += c.popularityPeriod[pl[0].id][f]
+			}
 		}
+		//pop := 0
+		//if popAcc, ok := c.popularityAccumulated[periodNo][f]; ok {
+		//	pop = popAcc
+		//}
 		data[i] = float64(pop)
 	}
 	base.NormalizePoint(data)
@@ -110,6 +116,7 @@ func (pl periodList) getClientsSimilarity() ([][]float64, clientList) {
 	data := make([][]float64, len(cl))
 	cp := make([]popularities, len(cl))
 	for i, c := range cl {
+		cp[i] = make(popularities)
 		for f, pop := range c.popularityAccumulated[pl[len(pl)-1].id] {
 			if popStart, ok := c.popularityAccumulated[pl[0].id][f]; ok {
 				pop -= popStart
@@ -118,13 +125,16 @@ func (pl periodList) getClientsSimilarity() ([][]float64, clientList) {
 			cp[i][f] = pop
 		}
 	}
-	for i := 0; i < len(cl); i++ {
+
+	for i := range cl {
 		data[i] = make([]float64, len(cl))
-		for j := 0; j < len(cl); j++ {
+	}
+	for i := range cl {
+		for j := range cl {
 			data[i][j] = cp[i].calSimilarity(cp[j], nil)
 			data[j][i] = data[i][j]
 		}
 	}
-	base.Normalize(data)
+	//base.Normalize(data)
 	return data, cl
 }

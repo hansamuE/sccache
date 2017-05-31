@@ -30,6 +30,7 @@ type parameters struct {
 	CachePolicy          cachePolicy
 	IsAssignClustering   bool
 	IsOnlineLearning     bool
+	LearningRate         float64
 	ClusteringMethod     func(periodList, int) (clientList, []int)
 	ResultFileName       string
 }
@@ -57,6 +58,7 @@ type parametersJSON struct {
 	CachePolicy          string  `json:"cache_policy"`
 	IsAssignClustering   bool    `json:"is_assign_clustering"`
 	IsOnlineLearning     bool    `json:"is_online_learning"`
+	LearningRate         float64 `json:"learning_rate"`
 	ClusteringMethod     string  `json:"clustering_method"`
 	ResultFileName       string  `json:"result_file_name"`
 }
@@ -122,6 +124,7 @@ func (cjl configJSONList) toConfig() configList {
 
 			cp.IsAssignClustering = cpj.IsAssignClustering
 			cp.IsOnlineLearning = cpj.IsOnlineLearning
+			cp.LearningRate = cpj.LearningRate
 
 			if cpj.ClusteringMethod == "similarity" {
 				cp.ClusteringMethod = clusteringWithSimilarity

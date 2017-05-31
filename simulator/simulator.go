@@ -49,7 +49,7 @@ func Simulate(path string) {
 					trainEndPeriod = len(periods)
 				}
 				var trainPL periodList = periods[cp.TrainStartPeriod:trainEndPeriod]
-				cl, guesses := clustering(trainPL, cp.ClusterNumber)
+				cl, guesses := cp.ClusteringMethod(trainPL, cp.ClusterNumber)
 				writeClusteringResultFiles(path, c, cpj, cl, guesses)
 			} else {
 				fmt.Println("Read Clustering Model...")
@@ -154,6 +154,7 @@ func writeResultFile(path string, c config, cpj parametersJSON, pl periodList) {
 			"_" + cpj.CachePolicy +
 			"_" + strconv.FormatBool(cpj.IsAssignClustering) +
 			"_" + strconv.FormatBool(cpj.IsOnlineLearning) +
+			"_" + strconv.FormatFloat(cpj.LearningRate, 'f', 1, 64) +
 			"_" + cpj.ClusteringMethod + ".csv"
 	}
 	f, err := os.Create(path + cpj.ResultFileName)
@@ -265,7 +266,7 @@ func (p *period) serve(cp parameters, filter fileList) {
 				p.newClients = append(p.newClients, c)
 			} else {
 				if cp.IsOnlineLearning {
-					onlineLearn(clientList{c})
+					onlineLearn(cp.LearningRate, clientList{c})
 				}
 				c.assign(cp, filter)
 				newUserNum[c.smallCell.id]++
@@ -286,10 +287,13 @@ func (p *period) serve(cp parameters, filter fileList) {
 func (p *period) endPeriod(cp parameters, filter fileList) {
 	p.calRate()
 	if cp.IsOnlineLearning {
-		onlineLearn(p.newClients)
+		onlineLearn(cp.LearningRate, p.newClients)
+	} else {
+		for _, c := range p.newClients {
+			c.assign(cp, filter)
+		}
 	}
 	for _, c := range p.newClients {
-		c.assign(cp, filter)
 		newUserNum[c.smallCell.id]++
 	}
 	fmt.Println("End Period:", p.end)
@@ -320,7 +324,7 @@ func (c *client) assign(cp parameters, filter fileList) {
 }
 
 func (c *client) assignWithClusteringModel() {
-	guess, err := clusteringModel.Predict(c.getFilePopularity())
+	guess, err := clusteringModel.Predict(c.getFilePopularity(periods[:periodNo+1]))
 	if err != nil {
 		panic("prediction error")
 	}
