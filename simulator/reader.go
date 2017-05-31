@@ -235,9 +235,8 @@ func newSmallCells(n int) smallCellList {
 }
 
 func (c *client) assignTo(sc *smallCell) {
-	osc := c.smallCell
-	if osc != nil {
-		delete(c.smallCell.clients, c.id)
+	if c.smallCell != nil {
+		c.removeFrom(c.smallCell)
 	}
 	sc.clients[c.id] = c
 	c.smallCell = sc
@@ -248,21 +247,28 @@ func (c *client) assignTo(sc *smallCell) {
 			sc.popularitiesPeriod = append(sc.popularitiesPeriod, make(popularities))
 		}
 		for k, v := range fp {
-			if osc != nil {
-				osc.popularitiesAccumulated[p][k] -= v
-				if _, ok := osc.popularitiesPeriod[p][k]; ok {
-					osc.popularitiesPeriod[p][k] -= v
-				}
-				if osc.cacheStorage != nil {
-					osc.cacheStorage.popularitiesAccumulated[p][k] -= v
-				}
-			}
 			sc.popularitiesAccumulated[p][k] += v
 			if _, ok := sc.popularitiesPeriod[p][k]; ok {
 				sc.popularitiesPeriod[p][k] += v
 			}
 			if sc.cacheStorage != nil {
 				sc.cacheStorage.popularitiesAccumulated[p][k] += v
+			}
+		}
+	}
+}
+
+func (c *client) removeFrom(sc *smallCell) {
+	c.smallCell = nil
+	delete(sc.clients, c.id)
+	for p, fp := range c.popularityAccumulated {
+		for k, v := range fp {
+			sc.popularitiesAccumulated[p][k] -= v
+			if _, ok := sc.popularitiesPeriod[p][k]; ok {
+				sc.popularitiesPeriod[p][k] -= v
+			}
+			if sc.cacheStorage != nil {
+				sc.cacheStorage.popularitiesAccumulated[p][k] -= v
 			}
 		}
 	}

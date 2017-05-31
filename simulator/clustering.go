@@ -65,12 +65,7 @@ func (pl periodList) getClientFilePopularity() ([][]float64, clientList) {
 	data := make([][]float64, len(cl))
 	for i, c := range cl {
 		data[i] = c.getFilePopularity(pl)
-		//data[i] = make([]float64, len(filesList))
-		//for j, f := range filesList {
-		//	data[i][j] = float64(pop)
-		//}
 	}
-	//base.Normalize(data)
 	return data, cl
 }
 
@@ -85,10 +80,6 @@ func (c *client) getFilePopularity(pl periodList) []float64 {
 				pop += c.popularityPeriod[pl[0].id][f]
 			}
 		}
-		//pop := 0
-		//if popAcc, ok := c.popularityAccumulated[periodNo][f]; ok {
-		//	pop = popAcc
-		//}
 		data[i] = float64(pop)
 	}
 	base.NormalizePoint(data)

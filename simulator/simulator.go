@@ -290,6 +290,9 @@ func (p *period) endPeriod(cp parameters, filter fileList) {
 		onlineLearn(cp.LearningRate, p.newClients)
 	} else {
 		for _, c := range p.newClients {
+			c.removeFrom(c.smallCell)
+		}
+		for _, c := range p.newClients {
 			c.assign(cp, filter)
 		}
 	}
