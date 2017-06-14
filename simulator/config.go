@@ -25,9 +25,11 @@ type parameters struct {
 	CooperationThreshold float64
 	FilesLimit           int
 	FileSize             int
-	CacheStorageSize     int
+	SmallCellSize        int
 	TestStartPeriod      int
 	CachePolicy          cachePolicy
+	IsOnlineCooperation  bool
+	OnlineCoopThreshold  float64
 	IsAssignClustering   bool
 	IsOnlineLearning     bool
 	LearningRate         float64
@@ -53,9 +55,11 @@ type parametersJSON struct {
 	CooperationThreshold float64 `json:"cooperation_threshold"`
 	FilesLimit           int     `json:"files_limit"`
 	FileSize             int     `json:"file_size"`
-	CacheStorageSize     int     `json:"cache_storage_size"`
+	SmallCellSize        int     `json:"small_cell_size"`
 	TestStartPeriod      int     `json:"test_start_period"`
 	CachePolicy          string  `json:"cache_policy"`
+	IsOnlineCooperation  bool    `json:"is_online_cooperation"`
+	OnlineCoopThreshold  float64 `json:"online_coop_threshold"`
 	IsAssignClustering   bool    `json:"is_assign_clustering"`
 	IsOnlineLearning     bool    `json:"is_online_learning"`
 	LearningRate         float64 `json:"learning_rate"`
@@ -110,7 +114,7 @@ func (cjl configJSONList) toConfig() configList {
 			cp.CooperationThreshold = cpj.CooperationThreshold
 			cp.FilesLimit = cpj.FilesLimit
 			cp.FileSize = cpj.FileSize
-			cp.CacheStorageSize = cpj.CacheStorageSize
+			cp.SmallCellSize = cpj.SmallCellSize
 			cp.TestStartPeriod = cpj.TestStartPeriod
 
 			switch cpj.CachePolicy {
@@ -122,6 +126,8 @@ func (cjl configJSONList) toConfig() configList {
 				cp.CachePolicy = leastFrequentlyUsed
 			}
 
+			cp.IsOnlineCooperation = cpj.IsOnlineCooperation
+			cp.OnlineCoopThreshold = cpj.OnlineCoopThreshold
 			cp.IsAssignClustering = cpj.IsAssignClustering
 			cp.IsOnlineLearning = cpj.IsOnlineLearning
 			cp.LearningRate = cpj.LearningRate

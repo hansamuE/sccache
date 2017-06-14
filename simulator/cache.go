@@ -54,6 +54,7 @@ func (cs *cacheStorage) cacheFile(f *file, cp cachePolicy) (int, *cache) {
 			sizeNotCached -= cs.space
 			cs.space = 0
 			di := make([]int, 0)
+			cs.caches = cp(cs.caches)
 			for i, v := range cs.caches {
 				if v == cf || v.fixed {
 					continue

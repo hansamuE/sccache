@@ -9,11 +9,13 @@ import (
 
 var (
 	formula       similarityFormula
+	smallCellSize int
 	cacheStorages cacheStorageList
 	periodNo      int
 	newUserNum    []int
 	dlFreq        [][]int
 	dlFreqAll     []int
+	log           string
 )
 
 type stats struct {
@@ -44,6 +46,7 @@ func Simulate(path string) {
 		for j, cp := range configs[i].ParametersList {
 			cpj := configJSONs[i].ParametersListJSON[j]
 			formula = cp.SimilarityFormula
+			smallCellSize = cp.SmallCellSize
 			if !cp.IsTrained {
 				fmt.Println("Clustering...")
 				trainEndPeriod := cp.TrainEndPeriod + 1
@@ -151,7 +154,7 @@ func writeResultFile(path string, c config, cpj parametersJSON, pl periodList) {
 			"_" + strconv.FormatFloat(cpj.CooperationThreshold, 'f', 2, 64) +
 			"_" + strconv.Itoa(cpj.FilesLimit) +
 			"_" + strconv.Itoa(cpj.FileSize) +
-			"_" + strconv.Itoa(cpj.CacheStorageSize) +
+			"_" + strconv.Itoa(cpj.SmallCellSize) +
 			"_" + strconv.Itoa(cpj.TestStartPeriod) +
 			"_" + cpj.CachePolicy +
 			"_" + strconv.FormatBool(cpj.IsAssignClustering) +
@@ -236,11 +239,11 @@ func writeResultFile(path string, c config, cpj parametersJSON, pl periodList) {
 	}
 	f.WriteString(strconv.Itoa(len(dlFreqAll)-1) + "\n")
 
-	f.WriteString("\nDownload Frequency:\n")
-	for i := range dlFreq {
-		f.WriteString(strconv.Itoa(i+1) + ": " + fmt.Sprintln(dlFreq[i]))
-	}
-	f.WriteString("all: " + fmt.Sprintln(dlFreqAll))
+	//f.WriteString("\nDownload Frequency:\n")
+	//for i := range dlFreq {
+	//	f.WriteString(strconv.Itoa(i+1) + ": " + fmt.Sprintln(dlFreq[i]))
+	//}
+	//f.WriteString("all: " + fmt.Sprintln(dlFreqAll))
 
 	f.WriteString("\nCooperation:\n")
 	for _, cs := range cacheStorages {
@@ -249,6 +252,8 @@ func writeResultFile(path string, c config, cpj parametersJSON, pl periodList) {
 		}
 		f.WriteString("\n")
 	}
+
+	f.WriteString(log)
 }
 
 func preProcess(cp parameters) {
@@ -257,7 +262,7 @@ func preProcess(cp parameters) {
 		f.size = cp.FileSize
 	}
 	for _, cs := range cacheStorages {
-		cs.size = cp.CacheStorageSize
+		cs.size = cp.SmallCellSize * len(cs.smallCells)
 		cs.space = cs.size
 	}
 
@@ -267,6 +272,8 @@ func preProcess(cp parameters) {
 		dlFreq[i] = make([]int, 1)
 	}
 	dlFreqAll = make([]int, 1)
+
+	log = ""
 }
 
 func (pl periodList) serve(cp parameters) {
@@ -340,7 +347,110 @@ func (p *period) endPeriod(cp parameters, filter fileList) {
 	for _, c := range p.newClients {
 		newUserNum[c.smallCell.id]++
 	}
+
+	total := make(map[*file]int, len(filesList))
+	if cp.IsOnlineCooperation {
+		for _, f := range filesList {
+			for _, sc := range smallCells {
+				total[f] += sc.popularitiesAccumulated[p.id][f]
+				//total[f] += sc.popularitiesPeriod[p.id][f]
+			}
+		}
+
+		isCoop := make([]bool, len(smallCells))
+		for _, f := range filesList {
+			coopList := make([]*smallCell, 0)
+			for _, sc := range smallCells {
+				if isCoop[sc.id] {
+					continue
+				}
+				if float64(sc.popularitiesAccumulated[p.id][f]-sc.popularitiesAccumulated[cp.TrainStartPeriod][f]+sc.popularitiesPeriod[cp.TrainStartPeriod][f])/float64(total[f]) >= cp.OnlineCoopThreshold {
+					//if float64(sc.popularitiesPeriod[p.id][f])/float64(total[f]) >= cp.OnlineCoopThreshold {
+					coopList = append(coopList, sc)
+				}
+			}
+			if len(coopList) > 1 {
+				cs := coopList[0].cacheStorage
+				for _, sc := range coopList {
+					if ok, cf := sc.cacheStorage.hasFile(f); ok {
+						if cf.fixed {
+							cs = sc.cacheStorage
+							break
+						}
+					}
+				}
+				for _, sc := range coopList {
+					if sc.cacheStorage != cs {
+						sc.assignTo(cs)
+					}
+				}
+				sizeCached, cf := cs.cacheFile(f, cp.CachePolicy)
+				cf.fixed = true
+				//cf.fixed = false
+				cs.served += sizeCached
+				cs.downloaded += f.size - sizeCached
+				p.served += sizeCached
+				p.downloaded += f.size - sizeCached
+				for _, coopSC := range coopList {
+					isCoop[coopSC.id] = true
+				}
+			}
+		}
+	}
+
 	fmt.Println("End Period:", p.end)
+
+	log += fmt.Sprint("\nEnd Period:", p.end)
+	log += fmt.Sprint("\nFiles \\ Small Cells\n\t")
+	for i, sc := range smallCells {
+		log += fmt.Sprint("cell" + strconv.Itoa(sc.id+1))
+		if i != len(smallCells)-1 {
+			log += fmt.Sprint("\t")
+		} else {
+			log += fmt.Sprint("\n")
+		}
+	}
+	for i, file := range filesList {
+		log += fmt.Sprint("file" + strconv.Itoa(i+1) + "\t")
+		for j, sc := range smallCells {
+			pop := sc.popularitiesAccumulated[p.id][file]
+			//pop := sc.popularitiesPeriod[p.id][file]
+			log += fmt.Sprint(strconv.Itoa(pop))
+			if j != len(smallCells)-1 {
+				log += fmt.Sprint("\t")
+			} else {
+				log += fmt.Sprint("\t" + strconv.Itoa(total[file]) + "\n")
+			}
+		}
+	}
+	log += fmt.Sprint("\nusers\t")
+	for i, sc := range smallCells {
+		log += fmt.Sprint(strconv.Itoa(len(sc.clients)))
+		if i != len(smallCells)-1 {
+			log += fmt.Sprint("\t")
+		} else {
+			log += fmt.Sprint("\n")
+		}
+	}
+	log += fmt.Sprint("\nDL\t")
+	for _, sc := range smallCells {
+		log += fmt.Sprint(strconv.Itoa(len(dlFreq[sc.id])-1) + "\t")
+	}
+	log += fmt.Sprint(strconv.Itoa(len(dlFreqAll)-1) + "\n")
+	log += fmt.Sprint("\nCooperation:\n")
+	for _, cs := range cacheStorages {
+		log += fmt.Sprint("size" + strconv.Itoa(cs.size) + "\t")
+		for _, c := range cs.caches {
+			if c.fixed {
+				log += fmt.Sprint(c.file.id + "\t")
+			}
+		}
+		for _, sc := range cs.smallCells {
+			log += fmt.Sprint(strconv.Itoa(sc.id+1) + "\t")
+		}
+		log += fmt.Sprint("\n")
+	}
+	log += fmt.Sprintln()
 }
 
 func (pl periodList) postProcess() {
@@ -443,16 +553,12 @@ func (scl smallCellList) arrangeCooperation(threshold float64, fn similarityForm
 }
 
 func (sc *smallCell) assignTo(cs *cacheStorage) {
-	ocs := sc.cacheStorage
-	if ocs != nil {
-		scl := ocs.smallCells
-		for i := range scl {
-			if scl[i] == sc {
-				scl = append(scl[:i], scl[i+1:]...)
-			}
-		}
+	if sc.cacheStorage != nil {
+		sc.removeFrom(sc.cacheStorage)
 	}
 	cs.smallCells = append(cs.smallCells, sc)
+	cs.size += smallCellSize
+	cs.space += smallCellSize
 	sc.cacheStorage = cs
 
 	for pn, fp := range sc.popularitiesAccumulated {
@@ -460,10 +566,57 @@ func (sc *smallCell) assignTo(cs *cacheStorage) {
 			cs.popularitiesAccumulated = append(cs.popularitiesAccumulated, make(popularities))
 		}
 		for k, v := range fp {
-			if ocs != nil {
-				ocs.popularitiesAccumulated[pn][k] -= v
-			}
 			cs.popularitiesAccumulated[pn][k] += v
+		}
+	}
+}
+
+func (sc *smallCell) removeFrom(cs *cacheStorage) {
+	if len(cs.smallCells) == 1 {
+		for i, cacheStorage := range cacheStorages {
+			if cacheStorage == cs {
+				cacheStorages = append(cacheStorages[:i], cacheStorages[i+1:]...)
+				return
+			}
+		}
+	}
+	for i := range cs.smallCells {
+		if cs.smallCells[i] == sc {
+			cs.smallCells = append(cs.smallCells[:i], cs.smallCells[i+1:]...)
+			break
+		}
+	}
+
+	cs.size -= smallCellSize
+	cs.space -= smallCellSize
+	cs.caches = leastFrequentlyUsed(cs.caches)
+	fixedSize := 0
+	for _, c := range cs.caches {
+		if c.fixed {
+			fixedSize += c.size
+		}
+	}
+	for _, c := range cs.caches {
+		if fixedSize < cs.size {
+			break
+		}
+		if c.fixed {
+			c.fixed = false
+			fixedSize -= c.size
+		}
+	}
+	i := 0
+	for cs.space < 0 {
+		for cs.caches[i].fixed {
+			i++
+		}
+		cs.space += cs.caches[i].size
+		cs.deleteCache([]int{i})
+	}
+
+	for pn, fp := range sc.popularitiesAccumulated {
+		for k, v := range fp {
+			cs.popularitiesAccumulated[pn][k] -= v
 		}
 	}
 }

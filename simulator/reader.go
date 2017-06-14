@@ -248,8 +248,8 @@ func (c *client) assignTo(sc *smallCell) {
 		}
 		for k, v := range fp {
 			sc.popularitiesAccumulated[p][k] += v
-			if _, ok := sc.popularitiesPeriod[p][k]; ok {
-				sc.popularitiesPeriod[p][k] += v
+			if pv, ok := c.popularityPeriod[p][k]; ok {
+				sc.popularitiesPeriod[p][k] += pv
 			}
 			if sc.cacheStorage != nil {
 				sc.cacheStorage.popularitiesAccumulated[p][k] += v
@@ -264,8 +264,8 @@ func (c *client) removeFrom(sc *smallCell) {
 	for p, fp := range c.popularityAccumulated {
 		for k, v := range fp {
 			sc.popularitiesAccumulated[p][k] -= v
-			if _, ok := sc.popularitiesPeriod[p][k]; ok {
-				sc.popularitiesPeriod[p][k] -= v
+			if pv, ok := c.popularityPeriod[p][k]; ok {
+				sc.popularitiesPeriod[p][k] -= pv
 			}
 			if sc.cacheStorage != nil {
 				sc.cacheStorage.popularitiesAccumulated[p][k] -= v
