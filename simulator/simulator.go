@@ -16,6 +16,9 @@ var (
 	dlFreq        [][]int
 	dlFreqAll     []int
 	log           string
+	coop          [][]int
+	iter          int
+	dlRateTotal   float64
 )
 
 type stats struct {
@@ -61,14 +64,22 @@ func Simulate(path string) {
 				readClusteringResultFiles(path, c, cpj)
 			}
 
-			preProcess(cp)
+			coop = readCooperationResultFiles(path, cpj)
+
 			testStartPeriod := cp.TestStartPeriod
 			if testStartPeriod > len(periods)-1 {
 				testStartPeriod = len(periods) - 1
 			}
 			var pl periodList = periods[testStartPeriod:]
-			pl.serve(cp)
-			pl.postProcess()
+
+			iter = 10
+			dlRateTotal = 0
+			for k := 0; k < iter; k++ {
+				preProcess(cp)
+				pl.serve(cp)
+				pl.postProcess()
+				dlRateTotal += pl.calRate()
+			}
 
 			writeResultFile(path, c, cpj, pl)
 
@@ -143,6 +154,20 @@ func writeClusteringResultFiles(path string, c config, cpj parametersJSON, cl cl
 //	readClientsAssignment(f)
 //}
 
+func readCooperationResultFiles(path string, cpj parametersJSON) [][]int {
+	f, err := os.Open(path + "coop_" + cpj.ResultFileName)
+	//f, err := os.Open(path + c.RequestsFileName +
+	//	"_cooperation_result_" + cpj.ClusteringMethod +
+	//	"_" + strconv.Itoa(cpj.TrainStartPeriod) +
+	//	"_" + strconv.Itoa(cpj.TrainEndPeriod) +
+	//	"_" + strconv.Itoa(cpj.ClusterNumber) + ".csv")
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+	return readCooperationResult(f)
+}
+
 func writeResultFile(path string, c config, cpj parametersJSON, pl periodList) {
 	if cpj.ResultFileName == "" {
 		cpj.ResultFileName = c.RequestsFileName +
@@ -169,6 +194,8 @@ func writeResultFile(path string, c config, cpj parametersJSON, pl periodList) {
 	defer f.Close()
 
 	f.WriteString(fmt.Sprint(cpj) + "\n")
+
+	f.WriteString("\nAverage Download Rate: " + strconv.FormatFloat(dlRateTotal/float64(iter), 'f', 5, 64) + "\n")
 
 	f.WriteString("\nOverall Download Rate: " + strconv.FormatFloat(pl.calRate(), 'f', 5, 64) + "\n")
 
@@ -257,7 +284,9 @@ func writeResultFile(path string, c config, cpj parametersJSON, pl periodList) {
 }
 
 func preProcess(cp parameters) {
-	smallCells.arrangeCooperation(cp.CooperationThreshold, cp.SimilarityFormula)
+	log = ""
+
+	smallCells.arrangeCooperation(cp)
 	for _, f := range files {
 		f.size = cp.FileSize
 	}
@@ -272,8 +301,6 @@ func preProcess(cp parameters) {
 		dlFreq[i] = make([]int, 1)
 	}
 	dlFreqAll = make([]int, 1)
-
-	log = ""
 }
 
 func (pl periodList) serve(cp parameters) {
@@ -321,6 +348,8 @@ func (p *period) serve(cp parameters, filter fileList) {
 		cs.downloaded += f.size - sizeCached
 		p.served += sizeCached
 		p.downloaded += f.size - sizeCached
+		c.smallCell.periodStats[p.id].served += sizeCached
+		c.smallCell.periodStats[p.id].downloaded += f.size - sizeCached
 
 		if f.size-sizeCached > 0 {
 			dlFreq[c.smallCell.id] = append(dlFreq[c.smallCell.id], 0)
@@ -349,14 +378,14 @@ func (p *period) endPeriod(cp parameters, filter fileList) {
 	}
 
 	total := make(map[*file]int, len(filesList))
-	if cp.IsOnlineCooperation {
-		for _, f := range filesList {
-			for _, sc := range smallCells {
-				total[f] += sc.popularitiesAccumulated[p.id][f]
-				//total[f] += sc.popularitiesPeriod[p.id][f]
-			}
+	for _, f := range filesList {
+		for _, sc := range smallCells {
+			total[f] += sc.popularitiesAccumulated[p.id][f]
+			//total[f] += sc.popularitiesPeriod[p.id][f]
 		}
+	}
 
+	if cp.IsOnlineCooperation {
 		isCoop := make([]bool, len(smallCells))
 		for _, f := range filesList {
 			coopList := make([]*smallCell, 0)
@@ -399,58 +428,7 @@ func (p *period) endPeriod(cp parameters, filter fileList) {
 	}
 
 	fmt.Println("End Period:", p.end)
-
-	log += fmt.Sprint("\nEnd Period:", p.end)
-	log += fmt.Sprint("\nFiles \\ Small Cells\n\t")
-	for i, sc := range smallCells {
-		log += fmt.Sprint("cell" + strconv.Itoa(sc.id+1))
-		if i != len(smallCells)-1 {
-			log += fmt.Sprint("\t")
-		} else {
-			log += fmt.Sprint("\n")
-		}
-	}
-	for i, file := range filesList {
-		log += fmt.Sprint("file" + strconv.Itoa(i+1) + "\t")
-		for j, sc := range smallCells {
-			pop := sc.popularitiesAccumulated[p.id][file]
-			//pop := sc.popularitiesPeriod[p.id][file]
-			log += fmt.Sprint(strconv.Itoa(pop))
-			if j != len(smallCells)-1 {
-				log += fmt.Sprint("\t")
-			} else {
-				log += fmt.Sprint("\t" + strconv.Itoa(total[file]) + "\n")
-			}
-		}
-	}
-	log += fmt.Sprint("\nusers\t")
-	for i, sc := range smallCells {
-		log += fmt.Sprint(strconv.Itoa(len(sc.clients)))
-		if i != len(smallCells)-1 {
-			log += fmt.Sprint("\t")
-		} else {
-			log += fmt.Sprint("\n")
-		}
-	}
-	log += fmt.Sprint("\nDL\t")
-	for _, sc := range smallCells {
-		log += fmt.Sprint(strconv.Itoa(len(dlFreq[sc.id])-1) + "\t")
-	}
-	log += fmt.Sprint(strconv.Itoa(len(dlFreqAll)-1) + "\n")
-	log += fmt.Sprint("\nCooperation:\n")
-	for _, cs := range cacheStorages {
-		log += fmt.Sprint("size" + strconv.Itoa(cs.size) + "\t")
-		for _, c := range cs.caches {
-			if c.fixed {
-				log += fmt.Sprint(c.file.id + "\t")
-			}
-		}
-		for _, sc := range cs.smallCells {
-			log += fmt.Sprint(strconv.Itoa(sc.id+1) + "\t")
-		}
-		log += fmt.Sprint("\n")
-	}
-	log += fmt.Sprintln()
+	log += p.getData()
 }
 
 func (pl periodList) postProcess() {
@@ -467,6 +445,73 @@ func reset() {
 		p.newClients = make(clientList, 0)
 		p.stats = stats{}
 	}
+	for _, sc := range smallCells {
+		sc.periodStats = make([]stats, len(periods))
+	}
+}
+
+func (p *period) getData() string {
+	data := ""
+
+	data += fmt.Sprint("\nEnd Period:", p.end)
+	data += fmt.Sprint("\nFiles \\ Small Cells\n\t")
+	for i, sc := range smallCells {
+		data += fmt.Sprint("cell" + strconv.Itoa(sc.id))
+		if i != len(smallCells)-1 {
+			data += fmt.Sprint("\t")
+		} else {
+			data += fmt.Sprint("total\n")
+		}
+	}
+	cellTotal := make([]int, len(smallCells))
+	for i, file := range filesList {
+		fileTotal := 0
+		data += fmt.Sprint("file" + strconv.Itoa(i+1) + "\t")
+		for j, sc := range smallCells {
+			pop := sc.popularitiesPeriod[p.id][file]
+			data += fmt.Sprint(strconv.Itoa(pop))
+			fileTotal += pop
+			cellTotal[j] += pop
+			if j != len(smallCells)-1 {
+				data += fmt.Sprint("\t")
+			} else {
+				data += fmt.Sprint("\t" + strconv.Itoa(fileTotal) + "\n")
+			}
+		}
+	}
+	data += fmt.Sprint("total")
+	for i := range smallCells {
+		data += fmt.Sprint("\t" + strconv.Itoa(cellTotal[i]))
+	}
+	data += fmt.Sprint("\n\nusers\t")
+	for i, sc := range smallCells {
+		data += fmt.Sprint(strconv.Itoa(len(sc.clients)))
+		if i != len(smallCells)-1 {
+			data += fmt.Sprint("\t")
+		} else {
+			data += fmt.Sprint("\n")
+		}
+	}
+	data += fmt.Sprint("\nDL\t")
+	for _, sc := range smallCells {
+		data += fmt.Sprint(strconv.Itoa(sc.periodStats[p.id].downloaded) + "\t")
+	}
+	data += fmt.Sprint("\nCooperation:\n")
+	for _, cs := range cacheStorages {
+		data += fmt.Sprint("size" + strconv.Itoa(cs.size) + "\t")
+		for _, c := range cs.caches {
+			if c.fixed {
+				data += fmt.Sprint(c.file.id + "\t")
+			}
+		}
+		for _, sc := range cs.smallCells {
+			data += fmt.Sprint(strconv.Itoa(sc.id) + "\t")
+		}
+		data += fmt.Sprint("\n")
+	}
+	data += fmt.Sprintln()
+
+	return data
 }
 
 func (c *client) assign(cp parameters, filter fileList) {
@@ -514,28 +559,92 @@ func (scl smallCellList) leastClients() *smallCell {
 	return scl[0]
 }
 
-func (scl smallCellList) arrangeCooperation(threshold float64, fn similarityFormula) cacheStorageList {
+func (scl smallCellList) arrangeCooperation(cp parameters) cacheStorageList {
 	group := make([]smallCellList, 0)
-	if threshold < 0 {
+	if cp.CooperationThreshold < 0 {
 		for _, sc := range scl {
 			group = append(group, smallCellList{sc})
 		}
 	} else {
-		ok := make([]bool, len(scl))
-		sim := scl.calSimilarity(nil)
-		for i := 0; i < len(scl); i++ {
-			if ok[i] {
-				continue
+		if true {
+			graph := make([][]int, len(scl))
+			for i := range graph {
+				graph[i] = make([]int, len(scl))
 			}
-			group = append(group, smallCellList{scl[i]})
-			ok[i] = true
-			for j := i + 1; j < len(scl); j++ {
-				if ok[j] {
+			for _, p := range periods[cp.TrainStartPeriod : cp.TrainEndPeriod+1] {
+				s := scl.calSimilarity(false, p.id, nil)
+				for i := 0; i < len(scl); i++ {
+					for j := i + 1; j < len(scl); j++ {
+						if s[i][j] >= cp.CooperationThreshold {
+							graph[i][j]++
+							graph[j][i]++
+						}
+					}
+				}
+
+				log += fmt.Sprintln()
+				for i := range s {
+					for key, value := range s[i] {
+						log += fmt.Sprint(strconv.FormatFloat(value, 'f', 2, 64))
+						if key != len(s[i])-1 {
+							log += fmt.Sprint("\t")
+						} else {
+							log += fmt.Sprint("\n")
+						}
+					}
+				}
+			}
+			log += fmt.Sprintln()
+			for i := range graph {
+				for key, value := range graph[i] {
+					log += fmt.Sprint(value)
+					if key != len(graph[i])-1 {
+						log += fmt.Sprint("\t")
+					} else {
+						log += fmt.Sprint("\n")
+					}
+				}
+			}
+			log += fmt.Sprintln()
+			//} else {
+			ok := make([]bool, len(scl))
+			sim := scl.calSimilarity(true, periodNo, nil)
+
+			log += fmt.Sprintln()
+			for i := range sim {
+				for key, value := range sim[i] {
+					log += fmt.Sprint(strconv.FormatFloat(value, 'f', 2, 64))
+					if key != len(sim[i])-1 {
+						log += fmt.Sprint("\t")
+					} else {
+						log += fmt.Sprint("\n")
+					}
+				}
+			}
+
+			for i := 0; i < len(scl); i++ {
+				if ok[i] {
 					continue
 				}
-				if sim[i][j] >= threshold {
-					group[len(group)-1] = append(group[len(group)-1], scl[j])
-					ok[j] = true
+				group = append(group, smallCellList{scl[i]})
+				ok[i] = true
+				for j := i + 1; j < len(scl); j++ {
+					if ok[j] {
+						continue
+					}
+					if sim[i][j] >= cp.CooperationThreshold {
+						group[len(group)-1] = append(group[len(group)-1], scl[j])
+						ok[j] = true
+					}
+				}
+			}
+		}
+		if coop != nil {
+			group = make([]smallCellList, 0)
+			for _, g := range coop {
+				group = append(group, make(smallCellList, 0))
+				for _, sc := range g {
+					group[len(group)-1] = append(group[len(group)-1], scl[sc])
 				}
 			}
 		}

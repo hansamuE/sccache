@@ -64,6 +64,7 @@ type smallCell struct {
 	popularitiesPeriod      []popularities
 	popularitiesAccumulated []popularities
 	cacheStorage            *cacheStorage
+	periodStats             []stats
 }
 
 func readConfigs(reader io.Reader) {
@@ -221,6 +222,31 @@ func readClusteringResult(model string, result io.Reader) {
 	}
 }
 
+func readCooperationResult(result io.Reader) [][]int {
+	group := make([][]int, 0)
+	r := csv.NewReader(result)
+	r.Comma = '\t'
+	r.FieldsPerRecord = -1
+	for {
+		rec, err := r.Read()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			panic(err)
+		}
+
+		group = append(group, make([]int, 0))
+		for _, value := range rec {
+			scID, err := strconv.Atoi(value)
+			if err != nil {
+				panic(err)
+			}
+			group[len(group)-1] = append(group[len(group)-1], scID)
+		}
+	}
+	return group
+}
+
 func newSmallCells(n int) smallCellList {
 	scs := make(smallCellList, n)
 	for i := 0; i < n; i++ {
@@ -229,6 +255,7 @@ func newSmallCells(n int) smallCellList {
 			clients:                 make(clientMap),
 			popularitiesPeriod:      []popularities{make(popularities)},
 			popularitiesAccumulated: []popularities{make(popularities)},
+			periodStats:             make([]stats, len(periods)),
 		}
 	}
 	return scs
