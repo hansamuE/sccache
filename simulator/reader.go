@@ -280,6 +280,9 @@ func (c *client) assignTo(sc *smallCell) {
 			}
 			if sc.cacheStorage != nil {
 				sc.cacheStorage.popularitiesAccumulated[p][k] += v
+				if pv, ok := c.popularityPeriod[p][k]; ok {
+					sc.cacheStorage.popularitiesPeriod[p][k] += pv
+				}
 			}
 		}
 	}
@@ -296,6 +299,9 @@ func (c *client) removeFrom(sc *smallCell) {
 			}
 			if sc.cacheStorage != nil {
 				sc.cacheStorage.popularitiesAccumulated[p][k] -= v
+				if pv, ok := c.popularityPeriod[p][k]; ok {
+					sc.cacheStorage.popularitiesPeriod[p][k] -= pv
+				}
 			}
 		}
 	}

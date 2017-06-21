@@ -17,8 +17,9 @@ var (
 	dlFreqAll     []int
 	log           string
 	coop          [][]int
-	iter          int
-	dlRateTotal   float64
+	//iter          int
+	dlRateTotal    float64
+	isPopularFixed bool
 )
 
 type stats struct {
@@ -72,18 +73,18 @@ func Simulate(path string) {
 			}
 			var pl periodList = periods[testStartPeriod:]
 
-			iter = 10
-			dlRateTotal = 0
-			for k := 0; k < iter; k++ {
-				preProcess(cp)
-				pl.serve(cp)
-				pl.postProcess()
-				dlRateTotal += pl.calRate()
-			}
+			//iter = 10
+			//dlRateTotal = 0
+			//for k := 0; k < iter; k++ {
+			preProcess(cp)
+			pl.serve(cp)
+			pl.postProcess()
+			dlRateTotal += pl.calRate()
 
 			writeResultFile(path, c, cpj, pl)
 
 			reset()
+			//}
 		}
 	}
 }
@@ -195,7 +196,7 @@ func writeResultFile(path string, c config, cpj parametersJSON, pl periodList) {
 
 	f.WriteString(fmt.Sprint(cpj) + "\n")
 
-	f.WriteString("\nAverage Download Rate: " + strconv.FormatFloat(dlRateTotal/float64(iter), 'f', 5, 64) + "\n")
+	//f.WriteString("\nAverage Download Rate: " + strconv.FormatFloat(dlRateTotal/float64(iter), 'f', 5, 64) + "\n")
 
 	f.WriteString("\nOverall Download Rate: " + strconv.FormatFloat(pl.calRate(), 'f', 5, 64) + "\n")
 
@@ -304,8 +305,40 @@ func preProcess(cp parameters) {
 }
 
 func (pl periodList) serve(cp parameters) {
+	log += periods[pl[0].id-1].getData(false)
 	fmt.Println("Start Testing With Config:", cp)
 	for pn, p := range pl {
+		// needs refactoring
+		isPopularFixed = true
+		if isPopularFixed {
+			cacheStorages.setPopularFiles(p.id)
+			for _, cs := range cacheStorages {
+				di := make([]int, 0)
+				for i, c := range cs.caches {
+					isPopular := false
+					for _, f := range cs.popularFiles[p.id][:len(cs.smallCells)] {
+						if c.file == f {
+							isPopular = true
+							break
+						}
+					}
+					if !isPopular {
+						di = append(di, i)
+					}
+				}
+				for _, v := range di {
+					cs.space += cs.caches[v].size
+				}
+				cs.deleteCache(di)
+				for _, f := range cs.popularFiles[p.id][:len(cs.smallCells)] {
+					sizeCached, cf := cs.cacheFile(f, cp.CachePolicy)
+					cf.fixed = true
+					cs.downloaded += f.size - sizeCached
+					p.downloaded += f.size - sizeCached
+				}
+			}
+		}
+
 		filesLimit := cp.FilesLimit
 		if filesLimit > len(p.popularFiles) {
 			filesLimit = len(p.popularFiles)
@@ -428,7 +461,7 @@ func (p *period) endPeriod(cp parameters, filter fileList) {
 	}
 
 	fmt.Println("End Period:", p.end)
-	log += p.getData()
+	log += p.getData(true)
 }
 
 func (pl periodList) postProcess() {
@@ -445,21 +478,20 @@ func reset() {
 		p.newClients = make(clientList, 0)
 		p.stats = stats{}
 	}
-	for _, sc := range smallCells {
-		sc.periodStats = make([]stats, len(periods))
-	}
+	//for _, sc := range smallCells {
+	//	sc.cacheStorage = nil
+	//	sc.periodStats = make([]stats, len(periods))
+	//}
 }
 
-func (p *period) getData() string {
+func (p *period) getData(isPeriod bool) string {
 	data := ""
 
 	data += fmt.Sprint("\nEnd Period:", p.end)
 	data += fmt.Sprint("\nFiles \\ Small Cells\n\t")
 	for i, sc := range smallCells {
-		data += fmt.Sprint("cell" + strconv.Itoa(sc.id))
-		if i != len(smallCells)-1 {
-			data += fmt.Sprint("\t")
-		} else {
+		data += fmt.Sprint("cell" + strconv.Itoa(sc.id) + "\t")
+		if i == len(smallCells)-1 {
 			data += fmt.Sprint("total\n")
 		}
 	}
@@ -468,7 +500,13 @@ func (p *period) getData() string {
 		fileTotal := 0
 		data += fmt.Sprint("file" + strconv.Itoa(i+1) + "\t")
 		for j, sc := range smallCells {
-			pop := sc.popularitiesPeriod[p.id][file]
+			var pop int
+			if isPeriod {
+				pop = sc.popularitiesPeriod[p.id][file]
+			} else {
+				// needs to start from actual train period
+				pop = sc.popularitiesAccumulated[p.id][file]
+			}
 			data += fmt.Sprint(strconv.Itoa(pop))
 			fileTotal += pop
 			cellTotal[j] += pop
@@ -652,7 +690,11 @@ func (scl smallCellList) arrangeCooperation(cp parameters) cacheStorageList {
 
 	cacheStorages = make(cacheStorageList, len(group))
 	for i, g := range group {
-		cacheStorages[i] = &cacheStorage{smallCells: make(smallCellList, 0)}
+		cacheStorages[i] = &cacheStorage{
+			smallCells:              make(smallCellList, 0),
+			popularFiles:            make([]fileList, len(periods)),
+			popularFilesAccumulated: make([]fileList, len(periods)),
+		}
 		for _, sc := range g {
 			sc.assignTo(cacheStorages[i])
 		}
@@ -673,9 +715,13 @@ func (sc *smallCell) assignTo(cs *cacheStorage) {
 	for pn, fp := range sc.popularitiesAccumulated {
 		if len(cs.popularitiesAccumulated)-1 < pn {
 			cs.popularitiesAccumulated = append(cs.popularitiesAccumulated, make(popularities))
+			cs.popularitiesPeriod = append(cs.popularitiesPeriod, make(popularities))
 		}
 		for k, v := range fp {
 			cs.popularitiesAccumulated[pn][k] += v
+			if pv, ok := sc.popularitiesPeriod[pn][k]; ok {
+				cs.popularitiesPeriod[pn][k] += pv
+			}
 		}
 	}
 }
@@ -726,6 +772,9 @@ func (sc *smallCell) removeFrom(cs *cacheStorage) {
 	for pn, fp := range sc.popularitiesAccumulated {
 		for k, v := range fp {
 			cs.popularitiesAccumulated[pn][k] -= v
+			if pv, ok := sc.popularitiesPeriod[pn][k]; ok {
+				cs.popularitiesPeriod[pn][k] -= pv
+			}
 		}
 	}
 }

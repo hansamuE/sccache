@@ -27,13 +27,19 @@ func (pl periodList) setPopularFiles(files map[string]*file) {
 	}
 }
 
-func (cs *cacheStorage) setPopularFiles(period int) {
-	fpl := make(filePopularityList, 0)
-	for f, pop := range cs.popularitiesAccumulated[period] {
-		fpl = append(fpl, filePopularity{f, pop})
+func (csl cacheStorageList) setPopularFiles(periodID int) {
+	for _, cs := range csl {
+		prd := make(filePopularityList, 0)
+		acm := make(filePopularityList, 0)
+		for f, pop := range cs.popularitiesAccumulated[periodID] {
+			prd = append(prd, filePopularity{f, cs.popularitiesPeriod[periodID][f]})
+			acm = append(acm, filePopularity{f, pop})
+		}
+		sort.Sort(prd)
+		sort.Sort(acm)
+		cs.popularFiles[periodID] = prd.getFileList()
+		cs.popularFilesAccumulated[periodID] = acm.getFileList()
 	}
-	sort.Sort(fpl)
-	cs.popularFiles[period] = fpl.getFileList()
 }
 
 func (p popularities) getFileList() fileList {

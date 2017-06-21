@@ -11,8 +11,10 @@ type cacheStorageList []*cacheStorage
 
 type cacheStorage struct {
 	smallCells              smallCellList
+	popularitiesPeriod      []popularities
 	popularitiesAccumulated []popularities
 	popularFiles            []fileList
+	popularFilesAccumulated []fileList
 	caches                  []*cache
 	size                    int
 	space                   int
