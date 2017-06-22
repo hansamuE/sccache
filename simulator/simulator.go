@@ -2,6 +2,7 @@ package simulator
 
 import (
 	"fmt"
+	"github.com/hansamuE/sccache/predictor"
 	"os"
 	"sort"
 	"strconv"
@@ -20,7 +21,12 @@ var (
 	//iter          int
 	dlRateTotal    float64
 	isPopularFixed bool
+	predictors     predictorsList
+	predictorC     []int
+	predictorTotal int
 )
+
+type predictorsList []predictor.Predictors
 
 type stats struct {
 	downloaded int
@@ -302,6 +308,23 @@ func preProcess(cp parameters) {
 		dlFreq[i] = make([]int, 1)
 	}
 	dlFreqAll = make([]int, 1)
+
+	predictors = make(predictorsList, 0)
+	predictors = append(predictors, predictor.NewDES("DES 0.99", 0.99))
+	//predictors = append(predictors, predictor.NewDES("DES 0.5", 0.5))
+	//predictors = append(predictors, predictor.NewDES("DES 0.1", 0.1))
+	//predictors = append(predictors, predictor.NewCB("CB 1", 1))
+	//predictors = append(predictors, predictor.NewCB("CB 0.5", 0.5))
+	predictors = append(predictors, predictor.NewDB("DB"))
+	predictors = append(predictors, predictor.NewAMA("AMA 3", 3))
+	//predictors = append(predictors, predictor.NewAMA("AMA 7", 7))
+	//predictors = append(predictors, predictor.NewAMA("AMA 14", 14))
+	predictors = append(predictors, predictor.NewGMA("GMA 3", 3))
+	//predictors = append(predictors, predictor.NewGMA("GMA 7", 7))
+	//predictors = append(predictors, predictor.NewGMA("GMA 14", 14))
+
+	predictorC = make([]int, len(predictors))
+	predictorTotal = 0
 }
 
 func (pl periodList) serve(cp parameters) {
@@ -313,10 +336,29 @@ func (pl periodList) serve(cp parameters) {
 		if isPopularFixed {
 			cacheStorages.setPopularFiles(p.id)
 			for _, cs := range cacheStorages {
+				fixedFileQ := len(cs.smallCells)
+				fll := predictors.predictFileRankings(cs.popularitiesAccumulated[:p.id])
+				log += "\n\nReal:\n\t"
+				for i := 0; i < fixedFileQ; i++ {
+					log += "\t" + cs.popularFiles[p.id][i].id
+				}
+				for i, fl := range fll {
+					log += "\n" + predictors[i].Name() + ":\n\t"
+					for j := 0; j < fixedFileQ; j++ {
+						log += "\t" + fl[j].id
+					}
+					n := len(cs.popularFiles[p.id][:fixedFileQ].intersect(fl[:fixedFileQ]))
+					predictorC[i] += n
+					predictorTotal += fixedFileQ
+					log += "\t" + strconv.FormatFloat(float64(n)/float64(fixedFileQ), 'f', 2, 64)
+				}
+				popularFiles := cs.popularFiles[p.id]
+				//popularFiles := fll[0]
 				di := make([]int, 0)
 				for i, c := range cs.caches {
 					isPopular := false
-					for _, f := range cs.popularFiles[p.id][:len(cs.smallCells)] {
+					fmt.Println(len(popularFiles))
+					for _, f := range popularFiles[:fixedFileQ] {
 						if c.file == f {
 							isPopular = true
 							break
@@ -330,13 +372,14 @@ func (pl periodList) serve(cp parameters) {
 					cs.space += cs.caches[v].size
 				}
 				cs.deleteCache(di)
-				for _, f := range cs.popularFiles[p.id][:len(cs.smallCells)] {
+				for _, f := range popularFiles[:fixedFileQ] {
 					sizeCached, cf := cs.cacheFile(f, cp.CachePolicy)
 					cf.fixed = true
 					cs.downloaded += f.size - sizeCached
 					p.downloaded += f.size - sizeCached
 				}
 			}
+			log += "\n"
 		}
 
 		filesLimit := cp.FilesLimit
@@ -351,6 +394,10 @@ func (pl periodList) serve(cp parameters) {
 		}
 	}
 	fmt.Println("All Periods Tested")
+
+	for i, total := range predictorC {
+		log += "\n" + predictors[i].Name() + ":\n\t" + strconv.FormatFloat(float64(total)/float64(predictorTotal/len(predictors)), 'f', 2, 64)
+	}
 }
 
 func (p *period) serve(cp parameters, filter fileList) {
@@ -482,6 +529,32 @@ func reset() {
 	//	sc.cacheStorage = nil
 	//	sc.periodStats = make([]stats, len(periods))
 	//}
+}
+
+func (pl predictorsList) predictFileRankings(pops []popularities) []fileList {
+	fll := make([]fileList, 0)
+	fpll := make([]filePopularityList, len(pl))
+	for _, f := range filesList {
+		input := make([]int, 0)
+		for _, pop := range pops {
+			input = append(input, pop[f])
+		}
+		for i, p := range pl {
+			if fpll[i] == nil {
+				fpll[i] = make(filePopularityList, 0)
+			}
+			pop, err := p.Predict(input)
+			if err != nil {
+				panic(err)
+			}
+			fpll[i] = append(fpll[i], filePopularity{f, pop[len(input)]})
+		}
+	}
+	for _, fpl := range fpll {
+		sort.Sort(fpl)
+		fll = append(fll, fpl.getFileList())
+	}
+	return fll
 }
 
 func (p *period) getData(isPeriod bool) string {
