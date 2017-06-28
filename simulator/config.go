@@ -22,12 +22,16 @@ type parameters struct {
 	TrainStartPeriod     int
 	TrainEndPeriod       int
 	ClusterNumber        int
+	CooperationFileName  string
 	CooperationThreshold float64
 	FilesLimit           int
 	FileSize             int
 	SmallCellSize        int
 	TestStartPeriod      int
 	CachePolicy          cachePolicy
+	IsPredictive         bool
+	IsOfflinePredictive  bool
+	ProportionFixed      float64
 	IsOnlineCooperation  bool
 	OnlineCoopThreshold  float64
 	IsAssignClustering   bool
@@ -52,12 +56,16 @@ type parametersJSON struct {
 	TrainStartPeriod     int     `json:"train_start_period"`
 	TrainEndPeriod       int     `json:"train_end_period"`
 	ClusterNumber        int     `json:"cluster_number"`
+	CooperationFileName  string  `json:"cooperation_file_name"`
 	CooperationThreshold float64 `json:"cooperation_threshold"`
 	FilesLimit           int     `json:"files_limit"`
 	FileSize             int     `json:"file_size"`
 	SmallCellSize        int     `json:"small_cell_size"`
 	TestStartPeriod      int     `json:"test_start_period"`
 	CachePolicy          string  `json:"cache_policy"`
+	IsPredictive         bool    `json:"is_predictive"`
+	IsOfflinePredictive  bool    `json:"is_offline_predictive"`
+	ProportionFixed      float64 `json:"proportion_fixed"`
 	IsOnlineCooperation  bool    `json:"is_online_cooperation"`
 	OnlineCoopThreshold  float64 `json:"online_coop_threshold"`
 	IsAssignClustering   bool    `json:"is_assign_clustering"`
@@ -111,6 +119,7 @@ func (cjl configJSONList) toConfig() configList {
 			cp.TrainStartPeriod = cpj.TrainStartPeriod
 			cp.TrainEndPeriod = cpj.TrainEndPeriod
 			cp.ClusterNumber = cpj.ClusterNumber
+			cp.CooperationFileName = cpj.CooperationFileName
 			cp.CooperationThreshold = cpj.CooperationThreshold
 			cp.FilesLimit = cpj.FilesLimit
 			cp.FileSize = cpj.FileSize
@@ -126,6 +135,9 @@ func (cjl configJSONList) toConfig() configList {
 				cp.CachePolicy = leastFrequentlyUsed
 			}
 
+			cp.IsPredictive = cpj.IsPredictive
+			cp.IsOfflinePredictive = cpj.IsOfflinePredictive
+			cp.ProportionFixed = cpj.ProportionFixed
 			cp.IsOnlineCooperation = cpj.IsOnlineCooperation
 			cp.OnlineCoopThreshold = cpj.OnlineCoopThreshold
 			cp.IsAssignClustering = cpj.IsAssignClustering

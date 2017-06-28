@@ -2,28 +2,31 @@ package simulator
 
 import (
 	"fmt"
-	"github.com/hansamuE/sccache/predictor"
 	"os"
 	"sort"
 	"strconv"
+
+	"github.com/hansamuE/sccache/predictor"
+	"time"
 )
 
 var (
-	formula       similarityFormula
-	smallCellSize int
-	cacheStorages cacheStorageList
-	periodNo      int
-	newUserNum    []int
-	dlFreq        [][]int
-	dlFreqAll     []int
-	log           string
-	coop          [][]int
-	//iter          int
+	formula        similarityFormula
+	smallCellSize  int
+	cacheStorages  cacheStorageList
+	periodNo       int
+	newUserNum     []int
+	dlFreq         [][]int
+	dlFreqAll      []int
+	log            string
+	coop           [][]int
+	iter           int
 	dlRateTotal    float64
-	isPopularFixed bool
 	predictors     predictorsList
 	predictorC     []int
 	predictorTotal int
+	mixedC         int
+	mixedTotal     int
 )
 
 type predictorsList []predictor.Predictors
@@ -79,18 +82,23 @@ func Simulate(path string) {
 			}
 			var pl periodList = periods[testStartPeriod:]
 
-			//iter = 10
-			//dlRateTotal = 0
-			//for k := 0; k < iter; k++ {
-			preProcess(cp)
-			pl.serve(cp)
-			pl.postProcess()
-			dlRateTotal += pl.calRate()
+			iter = 100
+			dlRateTotal = 0
+			for k := 0; k < iter; k++ {
+				preProcess(cp)
+				pl.serve(cp)
+				pl.postProcess()
+				dlRateTotal += pl.calRate()
 
-			writeResultFile(path, c, cpj, pl)
+				writeResultFile(path, c, cpj, pl)
+				for _, p := range pl {
+					p.downloaded = 0
+					p.served = 0
+				}
+			}
+			fmt.Println(dlRateTotal / float64(iter))
 
 			reset()
-			//}
 		}
 	}
 }
@@ -162,12 +170,10 @@ func writeClusteringResultFiles(path string, c config, cpj parametersJSON, cl cl
 //}
 
 func readCooperationResultFiles(path string, cpj parametersJSON) [][]int {
-	f, err := os.Open(path + "coop_" + cpj.ResultFileName)
-	//f, err := os.Open(path + c.RequestsFileName +
-	//	"_cooperation_result_" + cpj.ClusteringMethod +
-	//	"_" + strconv.Itoa(cpj.TrainStartPeriod) +
-	//	"_" + strconv.Itoa(cpj.TrainEndPeriod) +
-	//	"_" + strconv.Itoa(cpj.ClusterNumber) + ".csv")
+	if cpj.CooperationFileName == "" {
+		cpj.CooperationFileName = "coop_" + cpj.ResultFileName
+	}
+	f, err := os.Open(path + cpj.CooperationFileName)
 	if err != nil {
 		return nil
 	}
@@ -202,7 +208,7 @@ func writeResultFile(path string, c config, cpj parametersJSON, pl periodList) {
 
 	f.WriteString(fmt.Sprint(cpj) + "\n")
 
-	//f.WriteString("\nAverage Download Rate: " + strconv.FormatFloat(dlRateTotal/float64(iter), 'f', 5, 64) + "\n")
+	f.WriteString("\nAverage Download Rate: " + strconv.FormatFloat(dlRateTotal/float64(iter), 'f', 5, 64) + "\n")
 
 	f.WriteString("\nOverall Download Rate: " + strconv.FormatFloat(pl.calRate(), 'f', 5, 64) + "\n")
 
@@ -311,67 +317,112 @@ func preProcess(cp parameters) {
 
 	predictors = make(predictorsList, 0)
 	predictors = append(predictors, predictor.NewDES("DES 0.99", 0.99))
-	//predictors = append(predictors, predictor.NewDES("DES 0.5", 0.5))
-	//predictors = append(predictors, predictor.NewDES("DES 0.1", 0.1))
 	//predictors = append(predictors, predictor.NewCB("CB 1", 1))
-	//predictors = append(predictors, predictor.NewCB("CB 0.5", 0.5))
-	predictors = append(predictors, predictor.NewDB("DB"))
-	predictors = append(predictors, predictor.NewAMA("AMA 3", 3))
-	//predictors = append(predictors, predictor.NewAMA("AMA 7", 7))
+	//predictors = append(predictors, predictor.NewDB("DB"))
+	//predictors = append(predictors, predictor.NewAMA("AMA 3", 3))
+	predictors = append(predictors, predictor.NewAMA("AMA 7", 7))
 	//predictors = append(predictors, predictor.NewAMA("AMA 14", 14))
-	predictors = append(predictors, predictor.NewGMA("GMA 3", 3))
-	//predictors = append(predictors, predictor.NewGMA("GMA 7", 7))
+	//predictors = append(predictors, predictor.NewGMA("GMA 3", 3))
+	predictors = append(predictors, predictor.NewGMA("GMA 7", 7))
 	//predictors = append(predictors, predictor.NewGMA("GMA 14", 14))
 
 	predictorC = make([]int, len(predictors))
 	predictorTotal = 0
+	mixedC = 0
+	mixedTotal = 0
 }
 
 func (pl periodList) serve(cp parameters) {
 	log += periods[pl[0].id-1].getData(false)
 	fmt.Println("Start Testing With Config:", cp)
 	for pn, p := range pl {
-		// needs refactoring
-		isPopularFixed = true
-		if isPopularFixed {
+		if cp.IsPredictive {
 			cacheStorages.setPopularFiles(p.id)
 			for _, cs := range cacheStorages {
-				fixedFileQ := len(cs.smallCells)
+				popFileQ := cp.SmallCellSize / cp.FileSize * len(cs.smallCells)
+				fixedFileQ := int(float64(cp.SmallCellSize/cp.FileSize*len(cs.smallCells))*cp.ProportionFixed + 0.5)
+				if cp.ProportionFixed != 0 && fixedFileQ == 0 {
+					fixedFileQ = 1
+				}
+				//input := make([]popularities, 0)
+				//for i := p.id%2; i+1 < p.id; i+=2 {
+				//	input = append(input, make(popularities))
+				//	for f, pop := range cs.popularitiesAccumulated[i+1] {
+				//		input[len(input)-1][f] = pop
+				//	}
+				//}
+				//fll := predictors.predictFileRankings(input)
 				fll := predictors.predictFileRankings(cs.popularitiesAccumulated[:p.id])
 				log += "\n\nReal:\n\t"
-				for i := 0; i < fixedFileQ; i++ {
+				for i := 0; i < popFileQ; i++ {
 					log += "\t" + cs.popularFiles[p.id][i].id
 				}
+				fileCount := make(popularities, 0)
 				for i, fl := range fll {
 					log += "\n" + predictors[i].Name() + ":\n\t"
-					for j := 0; j < fixedFileQ; j++ {
+					for j := 0; j < popFileQ; j++ {
 						log += "\t" + fl[j].id
-					}
-					n := len(cs.popularFiles[p.id][:fixedFileQ].intersect(fl[:fixedFileQ]))
-					predictorC[i] += n
-					predictorTotal += fixedFileQ
-					log += "\t" + strconv.FormatFloat(float64(n)/float64(fixedFileQ), 'f', 2, 64)
-				}
-				popularFiles := cs.popularFiles[p.id]
-				//popularFiles := fll[0]
-				di := make([]int, 0)
-				for i, c := range cs.caches {
-					isPopular := false
-					fmt.Println(len(popularFiles))
-					for _, f := range popularFiles[:fixedFileQ] {
-						if c.file == f {
-							isPopular = true
-							break
+						fileCount[fl[j]] += 2
+						if j <= 1 {
+							fileCount[fl[j]] += 2 - j
 						}
 					}
-					if !isPopular {
-						di = append(di, i)
+					n := len(cs.popularFiles[p.id][:popFileQ].intersect(fl[:popFileQ]))
+					predictorC[i] += n
+					predictorTotal += popFileQ
+					log += "\t" + strconv.FormatFloat(float64(n)/float64(popFileQ), 'f', 2, 64)
+				}
+				fileCountList := make(filePopularityList, 0)
+				for f, pop := range fileCount {
+					fileCountList = append(fileCountList, filePopularity{f, pop})
+				}
+				sort.Sort(fileCountList)
+				mixedFl := fileCountList.getFileList()
+
+				if !cp.IsOfflinePredictive {
+					for cp.FileSize*(fixedFileQ+1) <= cp.SmallCellSize*len(cs.smallCells) && fileCountList[fixedFileQ].popularity == fileCountList[fixedFileQ-1].popularity {
+						fixedFileQ++
 					}
+					//for fixedFileQ >= 1 && fileCountList[fixedFileQ - 1].popularity == 2 {
+					//	fixedFileQ--
+					//}
 				}
-				for _, v := range di {
-					cs.space += cs.caches[v].size
+
+				log += "\nMixed:\n\t"
+				for i := 0; i < fixedFileQ; i++ {
+					log += "\t" + mixedFl[i].id
 				}
-				cs.deleteCache(di)
+				n := len(cs.popularFiles[p.id][:popFileQ].intersect(mixedFl[:fixedFileQ]))
+				mixedC += n
+				mixedTotal += fixedFileQ
+				log += "\t" + strconv.FormatFloat(float64(n)/float64(fixedFileQ), 'f', 2, 64)
+				var popularFiles fileList
+				if cp.IsOfflinePredictive {
+					popularFiles = cs.popularFiles[p.id]
+				} else {
+					popularFiles = mixedFl
+				}
+				for _, cache := range cs.caches {
+					cache.fixed = false
+				}
+				//di := make([]int, 0)
+				//cs.caches = cp.CachePolicy(cs.caches)
+				//for i, c := range cs.caches {
+				//	isPopular := false
+				//	for _, f := range popularFiles[:fixedFileQ] {
+				//		if c.file == f {
+				//			isPopular = true
+				//			break
+				//		}
+				//	}
+				//	if !isPopular {
+				//		di = append(di, i)
+				//	}
+				//}
+				//for _, v := range di {
+				//	cs.space += cs.caches[v].size
+				//}
+				//cs.deleteCache(di)
 				for _, f := range popularFiles[:fixedFileQ] {
 					sizeCached, cf := cs.cacheFile(f, cp.CachePolicy)
 					cf.fixed = true
@@ -398,12 +449,57 @@ func (pl periodList) serve(cp parameters) {
 	for i, total := range predictorC {
 		log += "\n" + predictors[i].Name() + ":\n\t" + strconv.FormatFloat(float64(total)/float64(predictorTotal/len(predictors)), 'f', 2, 64)
 	}
+	log += "\nMixed:\n\t" + strconv.FormatFloat(float64(mixedC)/float64(mixedTotal), 'f', 2, 64)
 }
 
 func (p *period) serve(cp parameters, filter fileList) {
 	periodNo = p.id
+	//checkPoint := []int{int(len(periods[periodNo-1].requests)/3), int(len(periods[periodNo-1].requests)*2/3)}
+	//c := 0
+	checkDuration, err := time.ParseDuration(strconv.Itoa(int(p.end.Sub(periods[p.id-1].end).Nanoseconds()/3)) + "ns")
+	if err != nil {
+		panic(err)
+	}
+	checkTime := periods[p.id-1].end.Add(checkDuration)
+	count := make(map[*cacheStorage]popularities)
+	for _, cs := range cacheStorages {
+		count[cs] = make(popularities)
+	}
 	for _, r := range p.requests {
 		t, f, c := r.time, r.file, r.client
+		if cp.IsPredictive && !cp.IsOfflinePredictive && t.After(checkTime) {
+			checkTime = checkTime.Add(checkDuration)
+			for _, cs := range cacheStorages {
+				fpl := make(filePopularityList, 0)
+				for file, pop := range count[cs] {
+					fpl = append(fpl, filePopularity{file, pop})
+				}
+				sort.Sort(fpl)
+				fl := fpl.getFileList()
+				for _, cache := range cs.caches {
+					if !cache.fixed {
+						continue
+					}
+					isPop := false
+					for _, popFile := range fl[:cp.SmallCellSize/cp.FileSize*len(cs.smallCells)] {
+						if cache.file == popFile {
+							isPop = true
+							break
+						}
+					}
+					if !isPop {
+						cache.fixed = false
+					}
+				}
+				for _, popFile := range fl[:int(float64(cp.SmallCellSize/cp.FileSize*len(cs.smallCells))*cp.ProportionFixed)] {
+					//for _, popFile := range fl[:cp.SmallCellSize/cp.FileSize*len(cs.smallCells)-1] {
+					sizeCached, cf := cs.cacheFile(popFile, cp.CachePolicy)
+					cf.fixed = true
+					cs.downloaded += f.size - sizeCached
+					p.downloaded += f.size - sizeCached
+				}
+			}
+		}
 		if len(filter) != 0 && !filter.has(f) {
 			continue
 		}
@@ -438,6 +534,8 @@ func (p *period) serve(cp parameters, filter fileList) {
 			dlFreq[c.smallCell.id][len(dlFreq[c.smallCell.id])-1]++
 			dlFreqAll[len(dlFreqAll)-1]++
 		}
+
+		count[cs][f]++
 	}
 }
 
@@ -547,7 +645,7 @@ func (pl predictorsList) predictFileRankings(pops []popularities) []fileList {
 			if err != nil {
 				panic(err)
 			}
-			fpll[i] = append(fpll[i], filePopularity{f, pop[len(input)]})
+			fpll[i] = append(fpll[i], filePopularity{f, pop[len(input)] - input[len(input)-1]})
 		}
 	}
 	for _, fpl := range fpll {
@@ -677,7 +775,7 @@ func (scl smallCellList) arrangeCooperation(cp parameters) cacheStorageList {
 			group = append(group, smallCellList{sc})
 		}
 	} else {
-		if true {
+		if false {
 			graph := make([][]int, len(scl))
 			for i := range graph {
 				graph[i] = make([]int, len(scl))
