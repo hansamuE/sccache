@@ -1,6 +1,8 @@
 package simulator
 
-import "math"
+import (
+	"math"
+)
 
 type similarityFormula func(popularitiesNormalized, popularitiesNormalized) float64
 
@@ -40,7 +42,7 @@ func (scl smallCellList) calSimilarity(isAccumulated bool, periodID int, filter 
 	return s
 }
 
-func (c *client) calSimilarity(filter fileList) []float64 {
+func (c *client) calSimilarityWithCacheStorages(filter fileList) []float64 {
 	s := make([]float64, len(cacheStorages))
 	for i, cs := range cacheStorages {
 		s[i] = c.popularityAccumulated[periodNo].calSimilarity(cs.popularitiesAccumulated[periodNo], filter)
@@ -48,19 +50,30 @@ func (c *client) calSimilarity(filter fileList) []float64 {
 	return s
 }
 
-func (p popularities) calSimilarity(fp2 popularities, filter fileList) float64 {
-	ifl := p.getFileList()
-	ifl = ifl.intersect(filter).intersect(fp2.getFileList())
-	if len(ifl) == 0 {
+func (c *client) calSimilarityWithSmallCells(filter fileList) []float64 {
+	s := make([]float64, len(smallCells)-1)
+	for i, sc := range smallCells {
+		if i == len(smallCells)-1 {
+			break
+		}
+		s[i] = c.popularityAccumulated[periodNo].calSimilarity(sc.popularitiesAccumulated[periodNo], filter)
+	}
+	return s
+}
+
+func (p popularities) calSimilarity(p2 popularities, filter fileList) float64 {
+	ufl := p.getFileList()
+	ufl = ufl.unite(p2.getFileList()).intersect(filter)
+	if len(ufl) == 0 {
 		return 0
 	}
-	ifp := make(popularities)
-	ifp2 := make(popularities)
-	for _, f := range ifl {
-		ifp[f] = p[f]
-		ifp2[f] = fp2[f]
+	ufp := make(popularities)
+	ufp2 := make(popularities)
+	for _, f := range ufl {
+		ufp[f] = p[f]
+		ufp2[f] = p2[f]
 	}
-	return formula(ifp.normalize(), ifp2.normalize())
+	return formula(ufp.normalize(), ufp2.normalize())
 }
 
 func (p popularities) sum() (s int) {

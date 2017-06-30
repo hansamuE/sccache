@@ -28,6 +28,7 @@ type smallCellList []*smallCell
 
 type file struct {
 	id                    string
+	name                  string
 	size                  int
 	popularityPeriod      []int
 	popularityAccumulated []int
@@ -173,7 +174,10 @@ func readRequests(reader io.Reader, duration time.Duration, column []int, comma 
 		periods[p].popularities[f]++
 	}
 	periods.setPopularFiles(files)
-	filesList = files.getFileList()
+	filesList = periods[p].popularFilesAccumulated
+	for i, f := range filesList {
+		files[f.id].name = "file" + strconv.Itoa(i+1)
+	}
 }
 
 func readClientsAssignment(reader io.Reader) {

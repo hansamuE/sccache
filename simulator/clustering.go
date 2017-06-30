@@ -10,14 +10,54 @@ const maxIterations = 50
 var clusteringModel *cluster.KMeans
 
 func clustering(pl periodList, clusterNum int) (clientList, []int) {
-	trainingSet, trainingClientList := pl.getClientFilePopularity()
-	clusteringModel = cluster.NewKMeans(clusterNum, maxIterations, trainingSet)
-	if clusteringModel.Learn() != nil {
-		panic("Clustering error!")
+	centroids := make([][]float64, clusterNum)
+	for i := 0; i < clusterNum; i++ {
+		centroids[i] = make([]float64, clusterNum-2)
 	}
-	guesses := clusteringModel.Guesses()
+	for i := 0; i < clusterNum-2; i++ {
+		for j := 0; j < clusterNum-2; j++ {
+			if j == i {
+				centroids[i][j] = 1
+			} else {
+				centroids[i][j] = 0
+			}
+		}
+	}
+	for i := 0; i < clusterNum-2; i++ {
+		centroids[clusterNum-2][i] = 1.0 / float64(clusterNum-2) * cluThreshold
+		centroids[clusterNum-1][i] = 0
+	}
+	clusteringModel = cluster.NewKMeans(clusterNum, maxIterations, nil)
+	clusteringModel.Centroids = centroids
+	trainingSet, trainingClientList := pl.getClientFilePopularity()
+	sum := 0
+	for _, f := range filesList {
+		sum += f.popularityAccumulated[pl[len(pl)-1].id]
+	}
+	reqThreshold = sum / len(trainingClientList)
+	guesses := make([]int, len(trainingClientList))
+	for i, data := range trainingSet {
+		total := 0
+		for _, pop := range trainingClientList[i].popularityAccumulated[pl[len(pl)-1].id] {
+			total += pop
+		}
+		if total < reqThreshold {
+			guesses[i] = clusterNum - 1
+			continue
+		}
+		guess, err := clusteringModel.Predict(data[:clusterNum-2])
+		if err != nil {
+			panic("Prediction error!")
+		}
+		guesses[i] = int(guess[0])
+	}
+	//clusteringModel = cluster.NewKMeans(clusterNum, maxIterations, trainingSet)
+	//if clusteringModel.Learn() != nil {
+	//	panic("Clustering error!")
+	//}
+	//guesses := clusteringModel.Guesses()
 
-	smallCells = newSmallCells(len(clusteringModel.Centroids))
+	smallCells = newSmallCells(clusterNum)
 	for i, c := range trainingClientList {
 		c.assignTo(smallCells[guesses[i]])
 	}
@@ -71,7 +111,8 @@ func (pl periodList) getClientFilePopularity() ([][]float64, clientList) {
 
 func (c *client) getFilePopularity(pl periodList) []float64 {
 	data := make([]float64, len(filesList))
-	for i, f := range filesList {
+	//for i, f := range filesList {
+	for i, f := range pl[len(pl)-1].popularFilesAccumulated {
 		pop := 0
 		if popEnd, ok := c.popularityAccumulated[pl[len(pl)-1].id][f]; ok {
 			pop = popEnd

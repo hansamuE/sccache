@@ -53,9 +53,9 @@ func sortedKeys(m map[string]int, order string) []string {
 		i++
 	}
 	if order == "ASC" {
-		sort.Sort(sm)
+		sort.Stable(sm)
 	} else if order == "DESC" {
-		sort.Sort(sort.Reverse(sm))
+		sort.Stable(sort.Reverse(sm))
 	}
 	return sm.s
 }

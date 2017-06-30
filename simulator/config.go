@@ -12,6 +12,7 @@ type config struct {
 	PeriodDuration   time.Duration
 	RequestsColumn   []int
 	RequestsComma    rune
+	SimIterations    int
 	ParametersList   parametersList
 }
 
@@ -22,6 +23,7 @@ type parameters struct {
 	TrainStartPeriod     int
 	TrainEndPeriod       int
 	ClusterNumber        int
+	ClusteringThreshold  float64
 	CooperationFileName  string
 	CooperationThreshold float64
 	FilesLimit           int
@@ -35,6 +37,7 @@ type parameters struct {
 	IsOnlineCooperation  bool
 	OnlineCoopThreshold  float64
 	IsAssignClustering   bool
+	IsAssignmentFixed    bool
 	IsOnlineLearning     bool
 	LearningRate         float64
 	ClusteringMethod     func(periodList, int) (clientList, []int)
@@ -46,6 +49,7 @@ type configJSON struct {
 	PeriodDuration     string             `json:"period_duration"`
 	RequestsColumn     []int              `json:"requests_column"`
 	RequestsComma      string             `json:"requests_comma"`
+	SimIterations      int                `json:"sim_iterations"`
 	ParametersListJSON parametersListJSON `json:"parameters_list"`
 }
 
@@ -56,6 +60,7 @@ type parametersJSON struct {
 	TrainStartPeriod     int     `json:"train_start_period"`
 	TrainEndPeriod       int     `json:"train_end_period"`
 	ClusterNumber        int     `json:"cluster_number"`
+	ClusteringThreshold  float64 `json:"clustering_threshold"`
 	CooperationFileName  string  `json:"cooperation_file_name"`
 	CooperationThreshold float64 `json:"cooperation_threshold"`
 	FilesLimit           int     `json:"files_limit"`
@@ -69,6 +74,7 @@ type parametersJSON struct {
 	IsOnlineCooperation  bool    `json:"is_online_cooperation"`
 	OnlineCoopThreshold  float64 `json:"online_coop_threshold"`
 	IsAssignClustering   bool    `json:"is_assign_clustering"`
+	IsAssignmentFixed    bool    `json:"is_assignment_fixed"`
 	IsOnlineLearning     bool    `json:"is_online_learning"`
 	LearningRate         float64 `json:"learning_rate"`
 	ClusteringMethod     string  `json:"clustering_method"`
@@ -102,6 +108,12 @@ func (cjl configJSONList) toConfig() configList {
 			c.RequestsComma = []rune(cj.RequestsComma)[0]
 		}
 
+		if cj.SimIterations == 0 {
+			c.SimIterations = 1
+		} else {
+			c.SimIterations = cj.SimIterations
+		}
+
 		for j, cpj := range cj.ParametersListJSON {
 			cp := &c.ParametersList[j]
 
@@ -119,6 +131,13 @@ func (cjl configJSONList) toConfig() configList {
 			cp.TrainStartPeriod = cpj.TrainStartPeriod
 			cp.TrainEndPeriod = cpj.TrainEndPeriod
 			cp.ClusterNumber = cpj.ClusterNumber
+
+			if cpj.ClusteringThreshold == 0 {
+				cp.ClusteringThreshold = 0.5
+			} else {
+				cp.ClusteringThreshold = cpj.ClusteringThreshold
+			}
+
 			cp.CooperationFileName = cpj.CooperationFileName
 			cp.CooperationThreshold = cpj.CooperationThreshold
 			cp.FilesLimit = cpj.FilesLimit
@@ -141,6 +160,7 @@ func (cjl configJSONList) toConfig() configList {
 			cp.IsOnlineCooperation = cpj.IsOnlineCooperation
 			cp.OnlineCoopThreshold = cpj.OnlineCoopThreshold
 			cp.IsAssignClustering = cpj.IsAssignClustering
+			cp.IsAssignmentFixed = cpj.IsAssignmentFixed
 			cp.IsOnlineLearning = cpj.IsOnlineLearning
 			cp.LearningRate = cpj.LearningRate
 

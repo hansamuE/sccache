@@ -56,8 +56,8 @@ func readParsedVideos(fileDir string) []Video {
 
 	videos := make([]Video, 0, len(videoMap))
 	for _, v := range videoMap {
-		sort.Sort(sort.IntSlice(v.ParseTime))
-		sort.Sort(sort.IntSlice(v.ViewCount))
+		sort.Stable(sort.IntSlice(v.ParseTime))
+		sort.Stable(sort.IntSlice(v.ViewCount))
 		videos = append(videos, v)
 	}
 

@@ -30,12 +30,12 @@ type cache struct {
 }
 
 func leastFrequentlyUsed(cl []*cache) []*cache {
-	sort.Slice(cl, func(i, j int) bool { return cl[i].count < cl[j].count })
+	sort.SliceStable(cl, func(i, j int) bool { return cl[i].count < cl[j].count })
 	return cl
 }
 
 func leastRecentlyUsed(cl []*cache) []*cache {
-	sort.Slice(cl, func(i, j int) bool { return cl[i].lastReq.Before(cl[j].lastReq) })
+	sort.SliceStable(cl, func(i, j int) bool { return cl[i].lastReq.Before(cl[j].lastReq) })
 	return cl
 }
 
