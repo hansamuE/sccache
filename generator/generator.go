@@ -34,15 +34,19 @@ func GenerateRequests(fileDir string, userNum int) {
 	for i := range userPref {
 		userPref[i] = make([]int, videoNum)
 	}
-	userDist := []float64{0.0, 0.62, 1.24, 13.66, 18.01, 24.84, 37.89, 51.55, 70.19, 100.0}
+	zipf := rand.NewZipf(ran, 3, 5, uint64(videoNum))
+	userDist := make(map[int]int)
+	for i := 0; i < 1000000; i++ {
+		userDist[int(zipf.Uint64())]++
+	}
 	u := 0
 	for i := range userDist {
-		for ; u < int(float64(userNum)*userDist[i]/100); u++ {
+		for ; u < userNum*userDist[i]/1000000; u++ {
 			for j, v := range ran.Perm(videoNum) {
-				if j < videoNum-i {
-					userPref[u][v] = 9
+				if j < i+1 {
+					userPref[u][v] = 60 + rand.Intn(40)
 				} else {
-					userPref[u][v] = 1
+					userPref[u][v] = rand.Intn(10)
 				}
 				totals[v] += userPref[u][v]
 			}
@@ -74,9 +78,8 @@ func GenerateRequests(fileDir string, userNum int) {
 				r := ran.Float64() * float64(totals[v])
 				for u, pref := range userPref {
 					r -= float64(pref[v])
-					if r < 0 && t-lastReq[u] > 180 {
+					if r < 0 && t-lastReq[u] >= 60 {
 						lastReq[u] = t
-						//fmt.Println(t, v, u)
 						f.WriteString(strconv.Itoa(t) + "\t" + strconv.Itoa(v) + "\t" + strconv.Itoa(u) + "\n")
 						break
 					}
