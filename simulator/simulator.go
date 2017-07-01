@@ -383,24 +383,32 @@ func (pl periodList) serve(c config, cp parameters) {
 				//}
 				//fll := predictors.predictFileRankings(input)
 				fll := predictors.predictFileRankings(cs.popularitiesAccumulated[:p.id])
+				pq := popFileQ
+				if pq > len(cs.popularFiles[p.id]) {
+					pq = len(cs.popularFiles[p.id])
+				}
 				log += "\n\nReal:\n\t"
-				for i := 0; i < popFileQ; i++ {
+				for i := 0; i < pq; i++ {
 					log += "\t" + cs.popularFiles[p.id][i].name
 				}
 				fileCount := make(popularities, 0)
 				for i, fl := range fll {
+					fq := popFileQ
+					if fq > len(fl) {
+						fq = len(fl)
+					}
 					log += "\n" + predictors[i].Name() + ":\n\t"
-					for j := 0; j < popFileQ; j++ {
+					for j := 0; j < fq; j++ {
 						log += "\t" + fl[j].name
 						fileCount[fl[j]] += 2
 						if j <= 1 {
 							fileCount[fl[j]] += 2 - j
 						}
 					}
-					n := len(cs.popularFiles[p.id][:popFileQ].intersect(fl[:popFileQ]))
+					n := len(cs.popularFiles[p.id][:pq].intersect(fl[:fq]))
 					predictorC[i] += n
-					predictorTotal += popFileQ
-					log += "\t" + strconv.FormatFloat(float64(n)/float64(popFileQ), 'f', 2, 64)
+					predictorTotal += fq
+					log += "\t" + strconv.FormatFloat(float64(n)/float64(fq), 'f', 2, 64)
 				}
 				fileCountList := make(filePopularityList, 0)
 				for f, pop := range fileCount {
@@ -409,8 +417,11 @@ func (pl periodList) serve(c config, cp parameters) {
 				sort.Stable(fileCountList)
 				mixedFl := fileCountList.getFileList()
 
+				if fixedFileQ > len(fileCountList)-1 {
+					fixedFileQ = len(fileCountList) - 1
+				}
 				if !cp.IsOfflinePredictive {
-					for fileSize*(fixedFileQ+1) <= smallCellSize*len(cs.smallCells) && fileCountList[fixedFileQ].popularity == fileCountList[fixedFileQ-1].popularity {
+					for fileSize*(fixedFileQ+1) <= smallCellSize*len(cs.smallCells) && fileCountList[fixedFileQ].popularity == fileCountList[fixedFileQ-1].popularity && fixedFileQ+1 < len(fileCountList) {
 						fixedFileQ++
 					}
 					//for fixedFileQ >= 1 && fileCountList[fixedFileQ - 1].popularity == 2 {
@@ -453,7 +464,11 @@ func (pl periodList) serve(c config, cp parameters) {
 				//	cs.space += cs.caches[v].size
 				//}
 				//cs.deleteCache(di)
-				for _, f := range popularFiles[:fixedFileQ] {
+				q := fixedFileQ
+				if q > len(popularFiles) {
+					q = len(popularFiles)
+				}
+				for _, f := range popularFiles[:q] {
 					sizeCached, cf := cs.cacheFile(f, policy)
 					cf.fixed = true
 					cs.downloaded += f.size - sizeCached
@@ -506,12 +521,16 @@ func (p *period) serve(cp parameters, filter fileList) {
 				}
 				sort.Stable(fpl)
 				fl := fpl.getFileList()
+				popFileQ := smallCellSize / fileSize * len(cs.smallCells)
+				if popFileQ > len(fl) {
+					popFileQ = len(fl)
+				}
 				for _, cache := range cs.caches {
 					if !cache.fixed {
 						continue
 					}
 					isPop := false
-					for _, popFile := range fl[:smallCellSize/fileSize*len(cs.smallCells)] {
+					for _, popFile := range fl[:popFileQ] {
 						if cache.file == popFile {
 							isPop = true
 							break
@@ -521,7 +540,7 @@ func (p *period) serve(cp parameters, filter fileList) {
 						cache.fixed = false
 					}
 				}
-				for _, popFile := range fl[:int(float64(smallCellSize/fileSize*len(cs.smallCells))*cp.ProportionFixed)] {
+				for _, popFile := range fl[:int(float64(popFileQ)*cp.ProportionFixed)] {
 					//for _, popFile := range fl[:cp.SmallCellSize/cp.FileSize*len(cs.smallCells)-1] {
 					sizeCached, cf := cs.cacheFile(popFile, policy)
 					cf.fixed = true
