@@ -8,76 +8,78 @@ type parametersList []parameters
 type parametersListJSON []parametersJSON
 
 type config struct {
-	RequestsFileName string
-	PeriodDuration   time.Duration
-	RequestsColumn   []int
-	RequestsComma    rune
-	SimIterations    int
-	ParametersList   parametersList
+	RequestsFileName    string
+	PeriodDuration      time.Duration
+	RequestsColumn      []int
+	RequestsComma       rune
+	IsTrained           bool
+	TrainStartPeriod    int
+	TrainDuration       int
+	TestStartPeriod     int
+	SimIterations       int
+	SimilarityFormula   similarityFormula
+	ClusterNumber       int
+	ClusteringMethod    func(periodList, int) (clientList, []int)
+	ClusteringThreshold float64
+	CooperationFileName string
+	FileSize            int
+	SmallCellSize       int
+	CachePolicy         cachePolicy
+	IsAssignmentFixed   bool
+	FileNamePreceded    string
+	ParametersList      parametersList
 }
 
 type parameters struct {
-	IsTrained            bool
-	SimilarityFormula    similarityFormula
-	IsPeriodSimilarity   bool
-	TrainStartPeriod     int
-	TrainEndPeriod       int
-	ClusterNumber        int
-	ClusteringThreshold  float64
-	CooperationFileName  string
-	CooperationThreshold float64
 	FilesLimit           int
-	FileSize             int
-	SmallCellSize        int
-	TestStartPeriod      int
-	CachePolicy          cachePolicy
+	IsPeriodSimilarity   bool
 	IsPredictive         bool
 	IsOfflinePredictive  bool
 	ProportionFixed      float64
+	CooperationThreshold float64
 	IsOnlineCooperation  bool
 	OnlineCoopThreshold  float64
 	IsAssignClustering   bool
-	IsAssignmentFixed    bool
 	IsOnlineLearning     bool
 	LearningRate         float64
-	ClusteringMethod     func(periodList, int) (clientList, []int)
 	ResultFileName       string
 }
 
 type configJSON struct {
-	RequestsFileName   string             `json:"requests_file_name"`
-	PeriodDuration     string             `json:"period_duration"`
-	RequestsColumn     []int              `json:"requests_column"`
-	RequestsComma      string             `json:"requests_comma"`
-	SimIterations      int                `json:"sim_iterations"`
-	ParametersListJSON parametersListJSON `json:"parameters_list"`
+	RequestsFileName    string             `json:"requests_file_name"`
+	PeriodDuration      string             `json:"period_duration"`
+	RequestsColumn      []int              `json:"requests_column"`
+	RequestsComma       string             `json:"requests_comma"`
+	IsTrained           bool               `json:"is_trained"`
+	TrainStartPeriod    int                `json:"train_start_period"`
+	TrainDuration       int                `json:"train_duration"`
+	TestStartPeriod     int                `json:"test_start_period"`
+	SimIterations       int                `json:"sim_iterations"`
+	SimilarityFormula   string             `json:"similarity_formula"`
+	ClusterNumber       int                `json:"cluster_number"`
+	ClusteringMethod    string             `json:"clustering_method"`
+	ClusteringThreshold float64            `json:"clustering_threshold"`
+	CooperationFileName string             `json:"cooperation_file_name"`
+	FileSize            int                `json:"file_size"`
+	SmallCellSize       int                `json:"small_cell_size"`
+	CachePolicy         string             `json:"cache_policy"`
+	IsAssignmentFixed   bool               `json:"is_assignment_fixed"`
+	FileNamePreceded    string             `json:"file_name_preceded"`
+	ParametersListJSON  parametersListJSON `json:"parameters_list"`
 }
 
 type parametersJSON struct {
-	IsTrained            bool    `json:"is_trained"`
-	SimilarityFormula    string  `json:"similarity_formula"`
-	IsPeriodSimilarity   bool    `json:"is_period_similarity"`
-	TrainStartPeriod     int     `json:"train_start_period"`
-	TrainEndPeriod       int     `json:"train_end_period"`
-	ClusterNumber        int     `json:"cluster_number"`
-	ClusteringThreshold  float64 `json:"clustering_threshold"`
-	CooperationFileName  string  `json:"cooperation_file_name"`
-	CooperationThreshold float64 `json:"cooperation_threshold"`
 	FilesLimit           int     `json:"files_limit"`
-	FileSize             int     `json:"file_size"`
-	SmallCellSize        int     `json:"small_cell_size"`
-	TestStartPeriod      int     `json:"test_start_period"`
-	CachePolicy          string  `json:"cache_policy"`
+	IsPeriodSimilarity   bool    `json:"is_period_similarity"`
 	IsPredictive         bool    `json:"is_predictive"`
 	IsOfflinePredictive  bool    `json:"is_offline_predictive"`
 	ProportionFixed      float64 `json:"proportion_fixed"`
+	CooperationThreshold float64 `json:"cooperation_threshold"`
 	IsOnlineCooperation  bool    `json:"is_online_cooperation"`
 	OnlineCoopThreshold  float64 `json:"online_coop_threshold"`
 	IsAssignClustering   bool    `json:"is_assign_clustering"`
-	IsAssignmentFixed    bool    `json:"is_assignment_fixed"`
 	IsOnlineLearning     bool    `json:"is_online_learning"`
 	LearningRate         float64 `json:"learning_rate"`
-	ClusteringMethod     string  `json:"clustering_method"`
 	ResultFileName       string  `json:"result_file_name"`
 }
 
@@ -108,71 +110,75 @@ func (cjl configJSONList) toConfig() configList {
 			c.RequestsComma = []rune(cj.RequestsComma)[0]
 		}
 
+		c.IsTrained = cj.IsTrained
+		c.TrainStartPeriod = cj.TrainStartPeriod
+		c.TrainDuration = cj.TrainDuration
+		c.TestStartPeriod = cj.TestStartPeriod
+
 		if cj.SimIterations == 0 {
 			c.SimIterations = 1
 		} else {
 			c.SimIterations = cj.SimIterations
 		}
 
+		switch cj.SimilarityFormula {
+		case "exp":
+			c.SimilarityFormula = exponential
+		case "cos":
+			c.SimilarityFormula = cosine
+		default:
+			c.SimilarityFormula = exponential
+		}
+
+		c.ClusterNumber = cj.ClusterNumber
+
+		if cj.ClusteringMethod == "similarity" {
+			c.ClusteringMethod = clusteringWithSimilarity
+		} else {
+			c.ClusteringMethod = clustering
+		}
+
+		if cj.ClusteringThreshold == 0 {
+			c.ClusteringThreshold = 0.5
+		} else {
+			c.ClusteringThreshold = cj.ClusteringThreshold
+		}
+
+		c.CooperationFileName = cj.CooperationFileName
+		c.FileSize = cj.FileSize
+		c.SmallCellSize = cj.SmallCellSize
+
+		switch cj.CachePolicy {
+		case "LRU":
+			c.CachePolicy = leastRecentlyUsed
+		case "LFU":
+			c.CachePolicy = leastFrequentlyUsed
+		default:
+			c.CachePolicy = leastFrequentlyUsed
+		}
+
+		c.IsAssignmentFixed = cj.IsAssignmentFixed
+
+		c.FileNamePreceded = cj.FileNamePreceded
+
 		for j, cpj := range cj.ParametersListJSON {
 			cp := &c.ParametersList[j]
 
-			switch cpj.SimilarityFormula {
-			case "exponential":
-				cp.SimilarityFormula = exponential
-			case "cosine":
-				cp.SimilarityFormula = cosine
-			default:
-				cp.SimilarityFormula = exponential
-			}
-
-			cp.IsPeriodSimilarity = cpj.IsPeriodSimilarity
-			cp.IsTrained = cpj.IsTrained
-			cp.TrainStartPeriod = cpj.TrainStartPeriod
-			cp.TrainEndPeriod = cpj.TrainEndPeriod
-			cp.ClusterNumber = cpj.ClusterNumber
-
-			if cpj.ClusteringThreshold == 0 {
-				cp.ClusteringThreshold = 0.5
-			} else {
-				cp.ClusteringThreshold = cpj.ClusteringThreshold
-			}
-
-			cp.CooperationFileName = cpj.CooperationFileName
-			cp.CooperationThreshold = cpj.CooperationThreshold
 			cp.FilesLimit = cpj.FilesLimit
-			cp.FileSize = cpj.FileSize
-			cp.SmallCellSize = cpj.SmallCellSize
-			cp.TestStartPeriod = cpj.TestStartPeriod
-
-			switch cpj.CachePolicy {
-			case "leastRecentlyUsed":
-				cp.CachePolicy = leastRecentlyUsed
-			case "leastFrequentlyUsed":
-				cp.CachePolicy = leastFrequentlyUsed
-			default:
-				cp.CachePolicy = leastFrequentlyUsed
-			}
+			cp.IsPeriodSimilarity = cpj.IsPeriodSimilarity
 
 			cp.IsPredictive = cpj.IsPredictive
 			cp.IsOfflinePredictive = cpj.IsOfflinePredictive
 			cp.ProportionFixed = cpj.ProportionFixed
+
+			cp.CooperationThreshold = cpj.CooperationThreshold
 			cp.IsOnlineCooperation = cpj.IsOnlineCooperation
 			cp.OnlineCoopThreshold = cpj.OnlineCoopThreshold
+
 			cp.IsAssignClustering = cpj.IsAssignClustering
-			cp.IsAssignmentFixed = cpj.IsAssignmentFixed
 			cp.IsOnlineLearning = cpj.IsOnlineLearning
 			cp.LearningRate = cpj.LearningRate
-
-			if cpj.ClusteringMethod == "similarity" {
-				cp.ClusteringMethod = clusteringWithSimilarity
-				cp.IsAssignClustering = false
-				cp.IsOnlineLearning = false
-			} else {
-				cp.ClusteringMethod = clustering
-			}
-
-			cp.ResultFileName = cpj.ResultFileName
+			cp.ResultFileName = cj.FileNamePreceded + cpj.ResultFileName
 		}
 	}
 	return cl
