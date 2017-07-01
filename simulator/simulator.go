@@ -433,7 +433,7 @@ func (pl periodList) serve(c config, cp parameters) {
 				for i := 0; i < fixedFileQ; i++ {
 					log += "\t" + mixedFl[i].name
 				}
-				n := len(cs.popularFiles[p.id][:popFileQ].intersect(mixedFl[:fixedFileQ]))
+				n := len(cs.popularFiles[p.id][:pq].intersect(mixedFl[:fixedFileQ]))
 				mixedC += n
 				mixedTotal += fixedFileQ
 				log += "\t" + strconv.FormatFloat(float64(n)/float64(fixedFileQ), 'f', 2, 64)
