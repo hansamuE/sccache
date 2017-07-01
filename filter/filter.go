@@ -15,6 +15,7 @@ var (
 	inputFile     string
 	filteredFile  string
 	outputFile    string
+	statsFile     string
 	requestSorted []string
 	requests      []Request
 	videoCount    map[string]int
@@ -100,6 +101,7 @@ func FilterLog(path string, inputFileName string, comma rune, column []int, isUR
 	inputFile = path + inputFileName
 	filteredFile = path + inputFileName + "_filtered.csv"
 	outputFile = path + inputFileName + "_" + strconv.Itoa(fileLimit) + "_" + strconv.Itoa(timeThreshold) + ".csv"
+	statsFile = path + inputFileName + "_" + strconv.Itoa(fileLimit) + "_" + strconv.Itoa(timeThreshold) + "_stats.csv"
 	if _, err := os.Stat(filteredFile); os.IsNotExist(err) {
 		readInputFile(comma, column, isURL)
 	}
@@ -196,10 +198,13 @@ func writeOutputFile(limit int) {
 	videoSorted := sortedKeys(videoCount, "DESC")
 	isPopular := make(map[string]bool)
 	numberPopular := limit
+	if limit == 0 || limit > len(videoSorted) {
+		numberPopular = len(videoSorted)
+	}
 	for i := 0; i < numberPopular; i++ {
 		isPopular[videoSorted[i]] = true
 	}
-	for videoCount[videoSorted[numberPopular]] == videoCount[videoSorted[numberPopular-1]] {
+	for numberPopular < len(videoSorted) && videoCount[videoSorted[numberPopular]] == videoCount[videoSorted[numberPopular-1]] {
 		isPopular[videoSorted[numberPopular]] = true
 		numberPopular++
 	}
@@ -210,6 +215,8 @@ func writeOutputFile(limit int) {
 
 	writer, _ := os.Create(outputFile)
 	defer writer.Close()
+	statsWriter, _ := os.Create(statsFile)
+	defer statsWriter.Close()
 
 	for _, request := range requests {
 		videoId := request.videoID
@@ -226,8 +233,12 @@ func writeOutputFile(limit int) {
 		userCount[userId]++
 		requestCount++
 	}
-	for videoId, count := range videoCount {
-		fmt.Printf("%s: %d\n", videoId, count)
+	videoIDSorted := sortedKeys(videoCount, "DESC")
+	for _, videoID := range videoIDSorted {
+		count := videoCount[videoID]
+		fmt.Printf("%s: %d\n", videoID, count)
+		statsWriter.WriteString(videoID + "\t" + strconv.Itoa(count) + "\n")
 	}
 	fmt.Printf("User: %d\nVideo: %d\nRequest: %d\n", len(userCount), len(videoCount), requestCount)
+	statsWriter.WriteString("\nUsers\t" + strconv.Itoa(len(userCount)) + "\nVideos\t" + strconv.Itoa(len(videoCount)) + "\nRequests\t" + strconv.Itoa(requestCount) + "\n")
 }
