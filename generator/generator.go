@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func GenerateRequests(fileDir string, userNum int) {
+func GenerateRequests(fileDir string, userNum int, proportion float64) {
 	seed := rand.NewSource(time.Now().UnixNano())
 	ran := rand.New(seed)
 
@@ -17,7 +17,7 @@ func GenerateRequests(fileDir string, userNum int) {
 	timeMap := make(map[int][]int)
 	for id, v := range videos {
 		for i := 0; i < len(v.ParseTime)-1; i++ {
-			for j := 0; j < (v.ViewCount[i+1]-v.ViewCount[i])/1000; j++ {
+			for j := 0; j < int(float64(v.ViewCount[i+1]-v.ViewCount[i])*proportion); j++ {
 				t := v.ParseTime[i] + ran.Intn(v.ParseTime[i+1]-v.ParseTime[i])
 				if req, exist := timeMap[t]; !exist {
 					vid := make([]int, 0)

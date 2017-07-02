@@ -27,14 +27,18 @@ func main() {
 		}
 		simulator.Simulate(path, args[len(args)-1])
 	case "gen":
-		if len(args) < 4 {
+		if len(args) < 5 {
 			return
 		}
 		userNum, err := strconv.Atoi(args[3])
 		if err != nil {
 			panic(err)
 		}
-		generator.GenerateRequests(args[2], userNum)
+		requestProportion, err := strconv.ParseFloat(args[4], 64)
+		if err != nil {
+			panic(err)
+		}
+		generator.GenerateRequests(args[2], userNum, requestProportion)
 	case "fil":
 		err, path, inputFileName, comma, column, isURL, fileLimit, timeThreshold := filter.ReadArgs(args)
 		if err != nil {
