@@ -58,8 +58,8 @@ func (pl periodList) calRate() float64 {
 	return float64(dl) / float64(dl+sv)
 }
 
-func Simulate(path string) {
-	readConfigsFile(path)
+func Simulate(path, configName string) {
+	readConfigsFile(path, configName)
 
 	for i, c := range configs {
 		cj := configJSONs[i]
@@ -78,8 +78,6 @@ func Simulate(path string) {
 		}
 		formula = c.SimilarityFormula
 		policy = c.CachePolicy
-		fileSize = c.FileSize
-		smallCellSize = c.SmallCellSize
 		cluThreshold = c.ClusteringThreshold
 
 		if !c.IsTrained {
@@ -89,8 +87,6 @@ func Simulate(path string) {
 			writeClusteringResultFiles(path, cj, cl, guesses)
 		}
 
-		coop = readCooperationResultFiles(path, c)
-
 		var pl periodList = periods[testStartPeriod:]
 
 		iter = c.SimIterations
@@ -98,6 +94,22 @@ func Simulate(path string) {
 		for _, cp := range configs[i].ParametersList {
 			fmt.Println("Read Clustering Model...")
 			readClusteringResultFiles(path, cj)
+
+			if c.CooperationFileName != "" {
+				coop = readCooperationResultFiles(path, c.CooperationFileName, c)
+			} else {
+				coop = readCooperationResultFiles(path, cp.CooperationFileName, c)
+			}
+			if c.FileSize != 0 {
+				fileSize = c.FileSize
+			} else {
+				fileSize = cp.FileSize
+			}
+			if c.SmallCellSize != 0 {
+				smallCellSize = c.SmallCellSize
+			} else {
+				smallCellSize = cp.SmallCellSize
+			}
 
 			dlRateTotal = 0
 			for k := 0; k < iter; k++ {
@@ -120,11 +132,11 @@ func Simulate(path string) {
 			reset()
 		}
 	}
-	writeDownloadRateFile(path)
+	writeDownloadRateFile(path, configName)
 }
 
-func readConfigsFile(path string) {
-	f, err := os.Open(path + "configs.json")
+func readConfigsFile(path, configName string) {
+	f, err := os.Open(path + configName)
 	if err != nil {
 		panic(err)
 	}
@@ -180,8 +192,8 @@ func writeClusteringResultFiles(path string, cj configJSON, cl clientList, guess
 	}
 }
 
-func writeDownloadRateFile(path string) {
-	f, err := os.Create(path + "download_rate.csv")
+func writeDownloadRateFile(path, configName string) {
+	f, err := os.Create(path + configName + "_download_rate.csv")
 	if err != nil {
 		panic(err)
 	}
@@ -198,11 +210,11 @@ func writeDownloadRateFile(path string) {
 //	readClientsAssignment(f)
 //}
 
-func readCooperationResultFiles(path string, c config) [][]int {
-	if c.CooperationFileName == "" {
-		c.CooperationFileName = c.RequestsFileName + "_coop.csv"
+func readCooperationResultFiles(path string, fileName string, c config) [][]int {
+	if fileName == "" {
+		fileName = c.RequestsFileName + "_coop.csv"
 	}
-	f, err := os.Open(path + c.CooperationFileName)
+	f, err := os.Open(path + fileName)
 	if err != nil {
 		return nil
 	}
@@ -363,7 +375,7 @@ func preProcess(cp parameters) {
 }
 
 func (pl periodList) serve(c config, cp parameters) {
-	log += periods[pl[0].id-1].getData(false)
+	log += periods[trainEndPeriod].getData(false)
 	fmt.Println("Start Testing With Config:", cp)
 	for pn, p := range pl {
 		if cp.IsPredictive {
@@ -984,8 +996,14 @@ func (scl smallCellList) arrangeCooperation(cp parameters) cacheStorageList {
 	for i, g := range group {
 		cacheStorages[i] = &cacheStorage{
 			smallCells:              make(smallCellList, 0),
+			popularitiesPeriod:      make([]popularities, len(periods)),
+			popularitiesAccumulated: make([]popularities, len(periods)),
 			popularFiles:            make([]fileList, len(periods)),
 			popularFilesAccumulated: make([]fileList, len(periods)),
+		}
+		for p := 0; p < len(periods); p++ {
+			cacheStorages[i].popularitiesPeriod[p] = make(popularities)
+			cacheStorages[i].popularitiesAccumulated[p] = make(popularities)
 		}
 		for _, sc := range g {
 			sc.assignTo(cacheStorages[i])
@@ -1005,10 +1023,6 @@ func (sc *smallCell) assignTo(cs *cacheStorage) {
 	sc.cacheStorage = cs
 
 	for pn, fp := range sc.popularitiesAccumulated {
-		if len(cs.popularitiesAccumulated)-1 < pn {
-			cs.popularitiesAccumulated = append(cs.popularitiesAccumulated, make(popularities))
-			cs.popularitiesPeriod = append(cs.popularitiesPeriod, make(popularities))
-		}
 		for k, v := range fp {
 			cs.popularitiesAccumulated[pn][k] += v
 			if pv, ok := sc.popularitiesPeriod[pn][k]; ok {

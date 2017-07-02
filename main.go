@@ -16,13 +16,16 @@ func main() {
 	}
 	switch args[1] {
 	case "sim":
-		var path string
 		if len(args) < 3 {
+			return
+		}
+		var path string
+		if len(args) < 4 {
 			path = ""
 		} else {
 			path = args[2]
 		}
-		simulator.Simulate(path)
+		simulator.Simulate(path, args[len(args)-1])
 	case "gen":
 		if len(args) < 4 {
 			return

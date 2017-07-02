@@ -31,6 +31,9 @@ type config struct {
 }
 
 type parameters struct {
+	CooperationFileName  string
+	FileSize             int
+	SmallCellSize        int
 	FilesLimit           int
 	IsPeriodSimilarity   bool
 	IsPredictive         bool
@@ -69,6 +72,9 @@ type configJSON struct {
 }
 
 type parametersJSON struct {
+	CooperationFileName  string  `json:"cooperation_file_name"`
+	FileSize             int     `json:"file_size"`
+	SmallCellSize        int     `json:"small_cell_size"`
 	FilesLimit           int     `json:"files_limit"`
 	IsPeriodSimilarity   bool    `json:"is_period_similarity"`
 	IsPredictive         bool    `json:"is_predictive"`
@@ -163,6 +169,10 @@ func (cjl configJSONList) toConfig() configList {
 
 		for j, cpj := range cj.ParametersListJSON {
 			cp := &c.ParametersList[j]
+
+			cp.CooperationFileName = cpj.CooperationFileName
+			cp.FileSize = cpj.FileSize
+			cp.SmallCellSize = cpj.SmallCellSize
 
 			cp.FilesLimit = cpj.FilesLimit
 			cp.IsPeriodSimilarity = cpj.IsPeriodSimilarity

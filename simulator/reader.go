@@ -257,9 +257,13 @@ func newSmallCells(n int) smallCellList {
 		scs[i] = &smallCell{
 			id:                      i,
 			clients:                 make(clientMap),
-			popularitiesPeriod:      []popularities{make(popularities)},
-			popularitiesAccumulated: []popularities{make(popularities)},
+			popularitiesPeriod:      make([]popularities, len(periods)),
+			popularitiesAccumulated: make([]popularities, len(periods)),
 			periodStats:             make([]stats, len(periods)),
+		}
+		for p := 0; p < len(periods); p++ {
+			scs[i].popularitiesPeriod[p] = make(popularities)
+			scs[i].popularitiesAccumulated[p] = make(popularities)
 		}
 	}
 	return scs
@@ -273,10 +277,6 @@ func (c *client) assignTo(sc *smallCell) {
 	c.smallCell = sc
 
 	for p, fp := range c.popularityAccumulated {
-		if len(sc.popularitiesAccumulated)-1 < p {
-			sc.popularitiesAccumulated = append(sc.popularitiesAccumulated, make(popularities))
-			sc.popularitiesPeriod = append(sc.popularitiesPeriod, make(popularities))
-		}
 		for k, v := range fp {
 			sc.popularitiesAccumulated[p][k] += v
 			if pv, ok := c.popularityPeriod[p][k]; ok {
