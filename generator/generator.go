@@ -53,7 +53,11 @@ func GenerateRequests(fileDir string, userNum int, proportion float64) {
 		}
 	}
 
-	f, err := os.Create(fileDir + "requests_" + strconv.Itoa(videoNum) + "_" + strconv.Itoa(userNum) + ".csv")
+	err := os.MkdirAll(fileDir+"output", os.ModePerm)
+	if err != nil {
+		panic(err)
+	}
+	f, err := os.Create(fileDir + "output/requests_" + strconv.Itoa(videoNum) + "_" + strconv.Itoa(userNum) + strconv.FormatFloat(proportion, 'f', 7, 64) + ".csv")
 	if err != nil {
 		panic(err)
 	}
