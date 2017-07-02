@@ -21,9 +21,9 @@ type config struct {
 	ClusterNumber       int
 	ClusteringMethod    func(periodList, int) (clientList, []int)
 	ClusteringThreshold float64
-	CooperationFileName string
+	CooperationFileName []string
 	FileSize            int
-	SmallCellSize       int
+	SmallCellSize       []int
 	CachePolicy         cachePolicy
 	IsAssignmentFixed   bool
 	FileNamePreceded    string
@@ -31,16 +31,15 @@ type config struct {
 }
 
 type parameters struct {
-	CooperationFileName  string
 	FileSize             int
-	SmallCellSize        int
 	FilesLimit           int
 	IsPeriodSimilarity   bool
 	IsPredictive         bool
 	IsOfflinePredictive  bool
 	ProportionFixed      float64
+	IsCooperative        bool
 	CooperationThreshold float64
-	IsOnlineCooperation  bool
+	IsOnlineCooperative  bool
 	OnlineCoopThreshold  float64
 	IsAssignClustering   bool
 	IsOnlineLearning     bool
@@ -62,9 +61,9 @@ type configJSON struct {
 	ClusterNumber       int                `json:"cluster_number"`
 	ClusteringMethod    string             `json:"clustering_method"`
 	ClusteringThreshold float64            `json:"clustering_threshold"`
-	CooperationFileName string             `json:"cooperation_file_name"`
+	CooperationFileName []string           `json:"cooperation_file_name"`
 	FileSize            int                `json:"file_size"`
-	SmallCellSize       int                `json:"small_cell_size"`
+	SmallCellSize       []int              `json:"small_cell_size"`
 	CachePolicy         string             `json:"cache_policy"`
 	IsAssignmentFixed   bool               `json:"is_assignment_fixed"`
 	FileNamePreceded    string             `json:"file_name_preceded"`
@@ -72,16 +71,15 @@ type configJSON struct {
 }
 
 type parametersJSON struct {
-	CooperationFileName  string  `json:"cooperation_file_name"`
 	FileSize             int     `json:"file_size"`
-	SmallCellSize        int     `json:"small_cell_size"`
 	FilesLimit           int     `json:"files_limit"`
 	IsPeriodSimilarity   bool    `json:"is_period_similarity"`
 	IsPredictive         bool    `json:"is_predictive"`
 	IsOfflinePredictive  bool    `json:"is_offline_predictive"`
 	ProportionFixed      float64 `json:"proportion_fixed"`
+	IsCooperative        bool    `json:"is_cooperative"`
 	CooperationThreshold float64 `json:"cooperation_threshold"`
-	IsOnlineCooperation  bool    `json:"is_online_cooperation"`
+	IsOnlineCooperative  bool    `json:"is_online_cooperation"`
 	OnlineCoopThreshold  float64 `json:"online_coop_threshold"`
 	IsAssignClustering   bool    `json:"is_assign_clustering"`
 	IsOnlineLearning     bool    `json:"is_online_learning"`
@@ -150,9 +148,11 @@ func (cjl configJSONList) toConfig() configList {
 			c.ClusteringThreshold = cj.ClusteringThreshold
 		}
 
-		c.CooperationFileName = cj.CooperationFileName
+		c.CooperationFileName = make([]string, len(cj.CooperationFileName))
+		copy(c.CooperationFileName, cj.CooperationFileName)
 		c.FileSize = cj.FileSize
-		c.SmallCellSize = cj.SmallCellSize
+		c.SmallCellSize = make([]int, len(cj.SmallCellSize))
+		copy(c.SmallCellSize, cj.SmallCellSize)
 
 		switch cj.CachePolicy {
 		case "LRU":
@@ -170,10 +170,7 @@ func (cjl configJSONList) toConfig() configList {
 		for j, cpj := range cj.ParametersListJSON {
 			cp := &c.ParametersList[j]
 
-			cp.CooperationFileName = cpj.CooperationFileName
 			cp.FileSize = cpj.FileSize
-			cp.SmallCellSize = cpj.SmallCellSize
-
 			cp.FilesLimit = cpj.FilesLimit
 			cp.IsPeriodSimilarity = cpj.IsPeriodSimilarity
 
@@ -181,14 +178,15 @@ func (cjl configJSONList) toConfig() configList {
 			cp.IsOfflinePredictive = cpj.IsOfflinePredictive
 			cp.ProportionFixed = cpj.ProportionFixed
 
+			cp.IsCooperative = cpj.IsCooperative
 			cp.CooperationThreshold = cpj.CooperationThreshold
-			cp.IsOnlineCooperation = cpj.IsOnlineCooperation
+			cp.IsOnlineCooperative = cpj.IsOnlineCooperative
 			cp.OnlineCoopThreshold = cpj.OnlineCoopThreshold
 
 			cp.IsAssignClustering = cpj.IsAssignClustering
 			cp.IsOnlineLearning = cpj.IsOnlineLearning
 			cp.LearningRate = cpj.LearningRate
-			cp.ResultFileName = cj.FileNamePreceded + cpj.ResultFileName
+			cp.ResultFileName = cpj.ResultFileName
 		}
 	}
 	return cl
