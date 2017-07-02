@@ -155,12 +155,12 @@ func readRequestsFile(path string, config config) {
 }
 
 func readClusteringResultFiles(path string, cj configJSON) {
-	model := path + cj.RequestsFileName +
+	model := path + "model/" + cj.RequestsFileName +
 		"_clustering_model_" + cj.ClusteringMethod +
 		"_" + strconv.Itoa(cj.TrainStartPeriod) +
 		"_" + strconv.Itoa(cj.TrainDuration) +
 		"_" + strconv.Itoa(cj.ClusterNumber) + ".json"
-	f, err := os.Open(path + cj.RequestsFileName +
+	f, err := os.Open(path + "model/" + cj.RequestsFileName +
 		"_clustering_result_" + cj.ClusteringMethod +
 		"_" + strconv.Itoa(cj.TrainStartPeriod) +
 		"_" + strconv.Itoa(cj.TrainDuration) +
@@ -173,12 +173,16 @@ func readClusteringResultFiles(path string, cj configJSON) {
 }
 
 func writeClusteringResultFiles(path string, cj configJSON, cl clientList, guesses []int) {
-	clusteringModel.PersistToFile(path + cj.RequestsFileName +
+	err := os.MkdirAll(path+"model", os.ModePerm)
+	if err != nil {
+		panic(err)
+	}
+	clusteringModel.PersistToFile(path + "model/" + cj.RequestsFileName +
 		"_clustering_model_" + cj.ClusteringMethod +
 		"_" + strconv.Itoa(cj.TrainStartPeriod) +
 		"_" + strconv.Itoa(cj.TrainDuration) +
 		"_" + strconv.Itoa(cj.ClusterNumber) + ".json")
-	f, err := os.Create(path + cj.RequestsFileName +
+	f, err := os.Create(path + "model/" + cj.RequestsFileName +
 		"_clustering_result_" + cj.ClusteringMethod +
 		"_" + strconv.Itoa(cj.TrainStartPeriod) +
 		"_" + strconv.Itoa(cj.TrainDuration) +
@@ -193,7 +197,7 @@ func writeClusteringResultFiles(path string, cj configJSON, cl clientList, guess
 }
 
 func writeDownloadRateFile(path, configName string) {
-	f, err := os.Create(path + configName + "_download_rate.csv")
+	f, err := os.Create(path + "download_rate_" + configName + ".csv")
 	if err != nil {
 		panic(err)
 	}
@@ -239,7 +243,11 @@ func writeResultFile(path string, cj configJSON, cp parameters, pl periodList) {
 			"_" + strconv.FormatFloat(cp.LearningRate, 'f', 1, 64) +
 			"_" + cj.ClusteringMethod + ".csv"
 	}
-	f, err := os.Create(path + cp.ResultFileName)
+	err := os.MkdirAll(path+"result", os.ModePerm)
+	if err != nil {
+		panic(err)
+	}
+	f, err := os.Create(path + "result/" + cp.ResultFileName)
 	if err != nil {
 		panic(err)
 	}
