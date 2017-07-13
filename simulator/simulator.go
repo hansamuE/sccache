@@ -12,12 +12,15 @@ import (
 
 var (
 	trainStartPeriod int
+	trainDuration	int
 	trainEndPeriod   int
 	testStartPeriod  int
 	formula          similarityFormula
 	policy           cachePolicy
 	coopFileName     string
 	fileSize         int
+	clusteringMethod    func(periodList, int) (clientList, []int)
+	clusterNumber	int
 	smallCellSize    int
 	cacheStorages    cacheStorageList
 	periodNo         int
@@ -67,25 +70,28 @@ func Simulate(path, configName string) {
 
 		readRequestsFile(path, c)
 
+		formula = c.SimilarityFormula
+		policy = c.CachePolicy
+		cluThreshold = c.ClusteringThreshold
+		fileSize = c.FileSize
+		clusteringMethod = c.ClusteringMethod
+		clusterNumber = c.ClusterNumber
+
 		trainStartPeriod = c.TrainStartPeriod
-		if c.TrainDuration == -1 || trainEndPeriod > len(periods)-1 {
+		trainDuration = c.TrainDuration
+		trainEndPeriod = trainStartPeriod + trainDuration - 1
+		if trainDuration == -1 || trainEndPeriod > len(periods)-1 {
 			trainEndPeriod = len(periods) - 1
-		} else {
-			trainEndPeriod = c.TrainStartPeriod + c.TrainDuration - 1
 		}
 		testStartPeriod = c.TestStartPeriod
 		if testStartPeriod > len(periods)-1 {
 			testStartPeriod = len(periods) - 1
 		}
-		formula = c.SimilarityFormula
-		policy = c.CachePolicy
-		cluThreshold = c.ClusteringThreshold
-		fileSize = c.FileSize
 
 		if !c.IsTrained {
 			fmt.Println("Clustering...")
 			var trainPL periodList = periods[trainStartPeriod : trainEndPeriod+1]
-			cl, guesses := c.ClusteringMethod(trainPL, c.ClusterNumber)
+			cl, guesses := clusteringMethod(trainPL, clusterNumber)
 			writeClusteringResultFiles(path, cj, cl, guesses)
 		}
 
@@ -397,6 +403,9 @@ func (pl periodList) serve(c config, cp parameters) {
 		if cp.IsPredictive {
 			cacheStorages.setPopularFiles(p.id)
 			for _, cs := range cacheStorages {
+				//if cs == smallCells[len(smallCells)-1].cacheStorage {
+				//	continue
+				//}
 				popFileQ := smallCellSize / fileSize * len(cs.smallCells)
 				fixedFileQ := int(float64(smallCellSize/fileSize*len(cs.smallCells))*cp.ProportionFixed + 0.5)
 				if cp.ProportionFixed != 0 && fixedFileQ == 0 {
@@ -543,6 +552,9 @@ func (p *period) serve(cp parameters, filter fileList) {
 		if cp.IsPredictive && !cp.IsOfflinePredictive && t.After(checkTime) {
 			checkTime = checkTime.Add(checkDuration)
 			for _, cs := range cacheStorages {
+				//if cs == smallCells[len(smallCells)-1].cacheStorage {
+				//	continue
+				//}
 				fpl := make(filePopularityList, 0)
 				for file, pop := range count[cs] {
 					fpl = append(fpl, filePopularity{file, pop})
@@ -554,9 +566,9 @@ func (p *period) serve(cp parameters, filter fileList) {
 					popFileQ = len(fl)
 				}
 				for _, cache := range cs.caches {
-					if !cache.fixed {
-						continue
-					}
+					//if !cache.fixed {
+					//	continue
+					//}
 					isPop := false
 					for _, popFile := range fl[:popFileQ] {
 						if cache.file == popFile {
@@ -564,9 +576,12 @@ func (p *period) serve(cp parameters, filter fileList) {
 							break
 						}
 					}
-					if !isPop {
-						cache.fixed = false
-					}
+					cache.fixed = isPop
+					//if isPop {
+					//	cache.fixed = true
+					//} else {
+					//	cache.fixed = false
+					//}
 				}
 				for _, popFile := range fl[:int(float64(popFileQ)*cp.ProportionFixed)] {
 					//for _, popFile := range fl[:cp.SmallCellSize/cp.FileSize*len(cs.smallCells)-1] {
@@ -716,6 +731,21 @@ func (p *period) endPeriod(c config, cp parameters, filter fileList) {
 			}
 		}
 	}
+
+	if c.IsReClustering && (p.id-trainEndPeriod)%trainDuration == 0 {
+		fmt.Println("Re-clustering...")
+		for _, sc := range smallCells {
+			for _, c := range sc.clients {
+				newUserNum[c.smallCell.id]--
+				c.removeFrom(c.smallCell)
+			}
+		}
+		endPeriod := p.id + trainDuration
+		if endPeriod >= len(periods) {
+			endPeriod = len(periods)-1
+		}
+		_, _ = clusteringMethod(periods[p.id:endPeriod+1], clusterNumber)
+	}
 }
 
 func (pl periodList) postProcess() {
@@ -732,6 +762,7 @@ func reset() {
 		p.newClients = make(clientList, 0)
 		p.stats = stats{}
 	}
+	smallCells = nil
 	//for _, sc := range smallCells {
 	//	sc.cacheStorage = nil
 	//sc.periodStats = make([]stats, len(periods))
@@ -873,7 +904,17 @@ func (c *client) assign(cp parameters, pl periodList, filter fileList) {
 	if cp.IsAssignClustering {
 		c.assignWithClusteringModel(pl)
 	} else {
-		c.assignWithSimilarity(formula, filter)
+		emptySC := 0
+		for _, sc := range smallCells {
+			if len(sc.clients) == 0 {
+				emptySC++
+			}
+		}
+		if float64(emptySC) < float64(clusterNumber) * 0.6 {
+			c.assignWithClusteringModel(pl)
+		} else {
+			c.assignWithSimilarity(formula, filter)
+		}
 	}
 }
 

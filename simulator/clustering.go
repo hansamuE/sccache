@@ -34,7 +34,9 @@ func clustering(pl periodList, clusterNum int) (clientList, []int) {
 	for _, f := range filesList {
 		sum += f.popularityAccumulated[pl[len(pl)-1].id]
 	}
-	reqThreshold = sum / len(trainingClientList)
+	//reqThreshold = int(float64(sum / len(trainingClientList)) * 0.6)
+	//reqThreshold = sum / len(trainingClientList)
+	reqThreshold = 3
 	guesses := make([]int, len(trainingClientList))
 	for i, data := range trainingSet {
 		total := 0
@@ -57,7 +59,9 @@ func clustering(pl periodList, clusterNum int) (clientList, []int) {
 	//}
 	//guesses := clusteringModel.Guesses()
 
-	smallCells = newSmallCells(clusterNum)
+	if smallCells == nil {
+		smallCells = newSmallCells(clusterNum)
+	}
 	for i, c := range trainingClientList {
 		c.assignTo(smallCells[guesses[i]])
 	}
@@ -113,6 +117,7 @@ func (c *client) getFilePopularity(pl periodList) []float64 {
 	data := make([]float64, len(filesList))
 	//for i, f := range filesList {
 	for i, f := range pl[len(pl)-1].popularFilesAccumulated {
+	//for i, f := range pl[len(pl)-1].popularFiles {
 		pop := 0
 		if popEnd, ok := c.popularityAccumulated[pl[len(pl)-1].id][f]; ok {
 			pop = popEnd

@@ -13,6 +13,7 @@ type config struct {
 	RequestsColumn      []int
 	RequestsComma       rune
 	IsTrained           bool
+	IsReClustering	bool
 	TrainStartPeriod    int
 	TrainDuration       int
 	TestStartPeriod     int
@@ -53,6 +54,7 @@ type configJSON struct {
 	RequestsColumn      []int              `json:"requests_column"`
 	RequestsComma       string             `json:"requests_comma"`
 	IsTrained           bool               `json:"is_trained"`
+	IsReClustering	bool    `json:"is_re_clustering"`
 	TrainStartPeriod    int                `json:"train_start_period"`
 	TrainDuration       int                `json:"train_duration"`
 	TestStartPeriod     int                `json:"test_start_period"`
@@ -115,6 +117,7 @@ func (cjl configJSONList) toConfig() configList {
 		}
 
 		c.IsTrained = cj.IsTrained
+		c.IsReClustering = cj.IsReClustering
 		c.TrainStartPeriod = cj.TrainStartPeriod
 		c.TrainDuration = cj.TrainDuration
 		c.TestStartPeriod = cj.TestStartPeriod
