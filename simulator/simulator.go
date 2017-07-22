@@ -12,15 +12,16 @@ import (
 
 var (
 	trainStartPeriod int
-	trainDuration	int
+	trainDuration    int
 	trainEndPeriod   int
 	testStartPeriod  int
 	formula          similarityFormula
 	policy           cachePolicy
 	coopFileName     string
 	fileSize         int
-	clusteringMethod    func(periodList, int) (clientList, []int)
-	clusterNumber	int
+	filesLimit       int
+	clusteringMethod func(periodList, int) (clientList, []int)
+	clusterNumber    int
 	smallCellSize    int
 	cacheStorages    cacheStorageList
 	periodNo         int
@@ -103,44 +104,57 @@ func Simulate(path, configName string) {
 		if cfnl == 0 {
 			cfnl = 1
 		}
+		fll := len(c.FilesLimit)
+		if fll == 0 {
+			fll = 1
+		}
 		scsl := len(c.SmallCellSize)
 
-		for cfni := 0; cfni < cfnl; cfni++ {
-			for scsi := 0; scsi < scsl; scsi++ {
-				for _, cp := range configs[i].ParametersList {
-					fmt.Println("Read Clustering Model...")
-					readClusteringResultFiles(path, cj)
+		for fli := 0; fli < fll; fli++ {
+			for cfni := 0; cfni < cfnl; cfni++ {
+				for scsi := 0; scsi < scsl; scsi++ {
+					for _, cp := range configs[i].ParametersList {
+						fmt.Println("Read Clustering Model...")
+						readClusteringResultFiles(path, cj)
 
-					if len(c.CooperationFileName) != 0 {
-						coopFileName = c.CooperationFileName[cfni]
-					} else {
-						coopFileName = ""
-					}
-					coop = readCooperationResultFiles(path, c.CooperationFileName[cfni], c)
-					smallCellSize = c.SmallCellSize[scsi]
-
-					dlRateTotal = 0
-					for k := 0; k < iter; k++ {
-						preProcess(cp)
-						pl.serve(c, cp)
-						pl.postProcess()
-						dlRateTotal += pl.calRate()
-
-						writeResultFile(path, cj, cp, pl)
-						for _, p := range pl {
-							p.downloaded = 0
-							p.served = 0
+						if len(c.FilesLimit) != 0 {
+							filesLimit = c.FilesLimit[fli]
+						} else {
+							filesLimit = cp.FilesLimit
 						}
-						for _, sc := range smallCells {
-							sc.periodStats = make([]stats, len(periods))
+						if len(c.CooperationFileName) != 0 {
+							coopFileName = c.CooperationFileName[cfni]
+						} else {
+							coopFileName = ""
 						}
-					}
-					fmt.Println(dlRateTotal / float64(iter))
+						coop = readCooperationResultFiles(path, c.CooperationFileName[cfni], c)
+						smallCellSize = c.SmallCellSize[scsi]
 
-					reset()
+						dlRateTotal = 0
+						for k := 0; k < iter; k++ {
+							preProcess(cp)
+							pl.serve(c, cp)
+							pl.postProcess()
+							dlRateTotal += pl.calRate()
+
+							writeResultFile(path, cj, cp, pl)
+							for _, p := range pl {
+								p.downloaded = 0
+								p.served = 0
+							}
+							for _, sc := range smallCells {
+								sc.periodStats = make([]stats, len(periods))
+							}
+						}
+						fmt.Println(dlRateTotal / float64(iter))
+
+						reset()
+					}
+					dlRateLog += "\n"
 				}
 				dlRateLog += "\n"
 			}
+			dlRateLog += "\n"
 		}
 		dlRateLog += "\n"
 	}
@@ -246,7 +260,7 @@ func writeResultFile(path string, cj configJSON, cp parameters, pl periodList) {
 			"_" + strconv.Itoa(cj.TrainDuration) +
 			"_" + strconv.Itoa(cj.ClusterNumber) +
 			"_" + strconv.FormatFloat(cp.CooperationThreshold, 'f', 2, 64) +
-			"_" + strconv.Itoa(cp.FilesLimit) +
+			"_" + strconv.Itoa(filesLimit) +
 			"_" + strconv.Itoa(cj.FileSize) +
 			"_" + strconv.Itoa(smallCellSize) +
 			"_" + strconv.Itoa(cj.TestStartPeriod) +
@@ -255,7 +269,7 @@ func writeResultFile(path string, cj configJSON, cp parameters, pl periodList) {
 			"_" + strconv.FormatFloat(cp.LearningRate, 'f', 1, 64) +
 			"_" + cj.ClusteringMethod + ".csv"
 	} else {
-		cp.ResultFileName = cj.FileNamePreceded + coopFileName + "_cache" + strconv.Itoa(smallCellSize) + "_" + cp.ResultFileName
+		cp.ResultFileName = cj.FileNamePreceded + strconv.Itoa(filesLimit) + "_" + coopFileName + "_cache" + strconv.Itoa(smallCellSize) + "_" + cp.ResultFileName
 	}
 	err := os.MkdirAll(path+"result", os.ModePerm)
 	if err != nil {
@@ -515,13 +529,13 @@ func (pl periodList) serve(c config, cp parameters) {
 			log += "\n"
 		}
 
-		filesLimit := cp.FilesLimit
-		if filesLimit > len(p.popularFiles) {
-			filesLimit = len(p.popularFiles)
+		fl := filesLimit
+		if fl > len(p.popularFiles) {
+			fl = len(p.popularFiles)
 		}
-		p.serve(cp, p.popularFiles[:filesLimit])
+		p.serve(cp, p.popularFiles[:fl])
 		if cp.IsPeriodSimilarity {
-			p.endPeriod(c, cp, pl[pn+1].popularFiles[:filesLimit])
+			p.endPeriod(c, cp, pl[pn+1].popularFiles[:fl])
 		} else {
 			p.endPeriod(c, cp, nil)
 		}
@@ -742,7 +756,7 @@ func (p *period) endPeriod(c config, cp parameters, filter fileList) {
 		}
 		endPeriod := p.id + trainDuration
 		if endPeriod >= len(periods) {
-			endPeriod = len(periods)-1
+			endPeriod = len(periods) - 1
 		}
 		_, _ = clusteringMethod(periods[p.id:endPeriod+1], clusterNumber)
 	}
@@ -817,7 +831,17 @@ func (p *period) getData(isPeriod bool) string {
 		}
 	}
 	cellTotal := make([]int, len(smallCells))
-	for _, file := range filesList {
+	var fList fileList
+	if isPeriod {
+		fl := filesLimit
+		if fl > len(p.popularFiles) {
+			fl = len(p.popularFiles)
+		}
+		fList = p.popularFiles[:fl]
+	} else {
+		fList = filesList
+	}
+	for _, file := range fList {
 		fileTotal := 0
 		data += fmt.Sprint(file.name + "\t")
 		for j, sc := range smallCells {
@@ -910,7 +934,7 @@ func (c *client) assign(cp parameters, pl periodList, filter fileList) {
 				emptySC++
 			}
 		}
-		if float64(emptySC) < float64(clusterNumber) * 0.6 {
+		if float64(emptySC) < float64(clusterNumber)*0.6 {
 			c.assignWithClusteringModel(pl)
 		} else {
 			c.assignWithSimilarity(formula, filter)

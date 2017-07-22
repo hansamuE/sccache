@@ -30,10 +30,10 @@ func clustering(pl periodList, clusterNum int) (clientList, []int) {
 	clusteringModel = cluster.NewKMeans(clusterNum, maxIterations, nil)
 	clusteringModel.Centroids = centroids
 	trainingSet, trainingClientList := pl.getClientFilePopularity()
-	sum := 0
-	for _, f := range filesList {
-		sum += f.popularityAccumulated[pl[len(pl)-1].id]
-	}
+	//sum := 0
+	//for _, f := range filesList {
+	//	sum += f.popularityAccumulated[pl[len(pl)-1].id]
+	//}
 	//reqThreshold = int(float64(sum / len(trainingClientList)) * 0.6)
 	//reqThreshold = sum / len(trainingClientList)
 	reqThreshold = 3
@@ -47,7 +47,8 @@ func clustering(pl periodList, clusterNum int) (clientList, []int) {
 			guesses[i] = clusterNum - 1
 			continue
 		}
-		guess, err := clusteringModel.Predict(data[:clusterNum-2])
+		//guess, err := clusteringModel.Predict(data[:clusterNum-2])
+		guess, err := clusteringModel.Predict(data)
 		if err != nil {
 			panic("Prediction error!")
 		}
@@ -114,9 +115,13 @@ func (pl periodList) getClientFilePopularity() ([][]float64, clientList) {
 }
 
 func (c *client) getFilePopularity(pl periodList) []float64 {
-	data := make([]float64, len(filesList))
+	dl := clusterNumber - 2
+	if dl > len(pl[len(pl)-1].popularFilesAccumulated) {
+		dl = len(pl[len(pl)-1].popularFilesAccumulated)
+	}
+	data := make([]float64, dl)
 	//for i, f := range filesList {
-	for i, f := range pl[len(pl)-1].popularFilesAccumulated {
+	for i, f := range pl[len(pl)-1].popularFilesAccumulated[:dl] {
 	//for i, f := range pl[len(pl)-1].popularFiles {
 		pop := 0
 		if popEnd, ok := c.popularityAccumulated[pl[len(pl)-1].id][f]; ok {

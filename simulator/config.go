@@ -13,7 +13,7 @@ type config struct {
 	RequestsColumn      []int
 	RequestsComma       rune
 	IsTrained           bool
-	IsReClustering	bool
+	IsReClustering      bool
 	TrainStartPeriod    int
 	TrainDuration       int
 	TestStartPeriod     int
@@ -24,6 +24,7 @@ type config struct {
 	ClusteringThreshold float64
 	CooperationFileName []string
 	FileSize            int
+	FilesLimit          []int
 	SmallCellSize       []int
 	CachePolicy         cachePolicy
 	IsAssignmentFixed   bool
@@ -54,7 +55,7 @@ type configJSON struct {
 	RequestsColumn      []int              `json:"requests_column"`
 	RequestsComma       string             `json:"requests_comma"`
 	IsTrained           bool               `json:"is_trained"`
-	IsReClustering	bool    `json:"is_re_clustering"`
+	IsReClustering      bool               `json:"is_re_clustering"`
 	TrainStartPeriod    int                `json:"train_start_period"`
 	TrainDuration       int                `json:"train_duration"`
 	TestStartPeriod     int                `json:"test_start_period"`
@@ -65,6 +66,7 @@ type configJSON struct {
 	ClusteringThreshold float64            `json:"clustering_threshold"`
 	CooperationFileName []string           `json:"cooperation_file_name"`
 	FileSize            int                `json:"file_size"`
+	FilesLimit          []int              `json:"files_limit"`
 	SmallCellSize       []int              `json:"small_cell_size"`
 	CachePolicy         string             `json:"cache_policy"`
 	IsAssignmentFixed   bool               `json:"is_assignment_fixed"`
@@ -154,6 +156,8 @@ func (cjl configJSONList) toConfig() configList {
 		c.CooperationFileName = make([]string, len(cj.CooperationFileName))
 		copy(c.CooperationFileName, cj.CooperationFileName)
 		c.FileSize = cj.FileSize
+		c.FilesLimit = make([]int, len(cj.FilesLimit))
+		copy(c.FilesLimit, cj.FilesLimit)
 		c.SmallCellSize = make([]int, len(cj.SmallCellSize))
 		copy(c.SmallCellSize, cj.SmallCellSize)
 
