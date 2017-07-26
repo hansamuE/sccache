@@ -530,10 +530,10 @@ func (pl periodList) serve(c config, cp parameters) {
 		}
 
 		fl := filesLimit
-		if fl > len(p.popularFiles) {
-			fl = len(p.popularFiles)
+		if fl > len(periods[p.id-1].popularFilesAccumulated) {
+			fl = len(periods[p.id-1].popularFilesAccumulated)
 		}
-		p.serve(cp, p.popularFiles[:fl])
+		p.serve(cp, periods[p.id-1].popularFilesAccumulated[:fl])
 		if cp.IsPeriodSimilarity {
 			p.endPeriod(c, cp, pl[pn+1].popularFiles[:fl])
 		} else {
