@@ -834,10 +834,10 @@ func (p *period) getData(isPeriod bool) string {
 	var fList fileList
 	if isPeriod {
 		fl := filesLimit
-		if fl > len(p.popularFiles) {
-			fl = len(p.popularFiles)
+		if fl > len(periods[p.id-1].popularFilesAccumulated) {
+			fl = len(periods[p.id-1].popularFilesAccumulated)
 		}
-		fList = p.popularFiles[:fl]
+		fList = periods[p.id-1].popularFilesAccumulated[:fl]
 	} else {
 		fList = filesList
 	}
