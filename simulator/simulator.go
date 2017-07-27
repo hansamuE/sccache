@@ -414,6 +414,12 @@ func (pl periodList) serve(c config, cp parameters) {
 	log += periods[trainEndPeriod].getData(false)
 	fmt.Println("Start Testing With Config:", cp)
 	for pn, p := range pl {
+		fl := filesLimit
+		if fl > len(periods[p.id-1].popularFilesAccumulated) {
+			fl = len(periods[p.id-1].popularFilesAccumulated)
+		}
+		filter := periods[p.id-1].popularFilesAccumulated[:fl]
+
 		if cp.IsPredictive {
 			cacheStorages.setPopularFiles(p.id)
 			for _, cs := range cacheStorages {
@@ -433,14 +439,14 @@ func (pl periodList) serve(c config, cp parameters) {
 				//	}
 				//}
 				//fll := predictors.predictFileRankings(input)
-				fll := predictors.predictFileRankings(cs.popularitiesAccumulated[:p.id])
+				fll := predictors.predictFileRankings(cs.popularitiesAccumulated[:p.id], filter)
 				pq := popFileQ
-				if pq > len(cs.popularFiles[p.id]) {
-					pq = len(cs.popularFiles[p.id])
+				if pq > len(cs.popularFiles[p.id].intersect(filter)) {
+					pq = len(cs.popularFiles[p.id].intersect(filter))
 				}
 				log += "\n\nReal:\n\t"
 				for i := 0; i < pq; i++ {
-					log += "\t" + cs.popularFiles[p.id][i].name
+					log += "\t" + cs.popularFiles[p.id].intersect(filter)[i].name
 				}
 				fileCount := make(popularities, 0)
 				for i, fl := range fll {
@@ -456,7 +462,7 @@ func (pl periodList) serve(c config, cp parameters) {
 							fileCount[fl[j]] += 2 - j
 						}
 					}
-					n := len(cs.popularFiles[p.id][:pq].intersect(fl[:fq]))
+					n := len(cs.popularFiles[p.id].intersect(filter)[:pq].intersect(fl[:fq]))
 					predictorC[i] += n
 					predictorTotal += fq
 					log += "\t" + strconv.FormatFloat(float64(n)/float64(fq), 'f', 2, 64)
@@ -484,13 +490,13 @@ func (pl periodList) serve(c config, cp parameters) {
 				for i := 0; i < fixedFileQ; i++ {
 					log += "\t" + mixedFl[i].name
 				}
-				n := len(cs.popularFiles[p.id][:pq].intersect(mixedFl[:fixedFileQ]))
+				n := len(cs.popularFiles[p.id].intersect(filter)[:pq].intersect(mixedFl[:fixedFileQ]))
 				mixedC += n
 				mixedTotal += fixedFileQ
 				log += "\t" + strconv.FormatFloat(float64(n)/float64(fixedFileQ), 'f', 2, 64)
 				var popularFiles fileList
 				if cp.IsOfflinePredictive {
-					popularFiles = cs.popularFiles[p.id]
+					popularFiles = cs.popularFiles[p.id].intersect(filter)
 				} else {
 					popularFiles = mixedFl
 				}
@@ -529,12 +535,9 @@ func (pl periodList) serve(c config, cp parameters) {
 			log += "\n"
 		}
 
-		fl := filesLimit
-		if fl > len(periods[p.id-1].popularFilesAccumulated) {
-			fl = len(periods[p.id-1].popularFilesAccumulated)
-		}
-		p.serve(cp, periods[p.id-1].popularFilesAccumulated[:fl])
+		p.serve(cp, filter)
 		if cp.IsPeriodSimilarity {
+			// may need filter
 			p.endPeriod(c, cp, pl[pn+1].popularFiles[:fl])
 		} else {
 			p.endPeriod(c, cp, nil)
@@ -783,7 +786,7 @@ func reset() {
 	//}
 }
 
-func (pl predictorsList) predictFileRankings(pops []popularities) []fileList {
+func (pl predictorsList) predictFileRankings(pops []popularities, filter fileList) []fileList {
 	fll := make([]fileList, 0)
 	fpll := make([]filePopularityList, len(pl))
 	for _, f := range filesList {
@@ -804,7 +807,7 @@ func (pl predictorsList) predictFileRankings(pops []popularities) []fileList {
 	}
 	for _, fpl := range fpll {
 		sort.Stable(fpl)
-		fll = append(fll, fpl.getFileList())
+		fll = append(fll, fpl.getFileList().intersect(filter))
 	}
 	return fll
 }
