@@ -6,58 +6,55 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/leesper/go_rng"
 )
 
 func GenerateRequests(fileDir string, userNum int, proportion float64) {
 	seed := rand.NewSource(time.Now().UnixNano())
 	ran := rand.New(seed)
+	prng := rng.NewPoissonGenerator(time.Now().UnixNano())
 
 	videos := readParsedVideos(fileDir)
 	videoNum := len(videos)
 	timeMap := make(map[int][]int)
 	for id, v := range videos {
 		for i := 0; i < len(v.ParseTime)-1; i++ {
-			for j := 0; j < int(float64(v.ViewCount[i+1]-v.ViewCount[i])*proportion); j++ {
-				t := v.ParseTime[i] + ran.Intn(v.ParseTime[i+1]-v.ParseTime[i])
-				if req, exist := timeMap[t]; !exist {
-					vid := make([]int, 0)
-					timeMap[t] = append(vid, id)
-				} else {
-					timeMap[t] = append(req, id)
+			if v.ViewCount[i+1]-v.ViewCount[i] == 0 {
+				continue
+			}
+			lambda := float64(v.ViewCount[i+1]-v.ViewCount[i]) * proportion / (float64(v.ParseTime[i+1]-v.ParseTime[i]) / 600)
+			for t := v.ParseTime[i]; t < v.ParseTime[i+1]; t += 600 {
+				for j := 0; j < int(prng.Poisson(lambda)); j++ {
+					rt := t + ran.Intn(600)
+					if req, exist := timeMap[rt]; !exist {
+						vid := make([]int, 0)
+						timeMap[rt] = append(vid, id)
+					} else {
+						timeMap[rt] = append(req, id)
+					}
 				}
 			}
+			fmt.Println(v.ParseTime[i+1])
 		}
+		fmt.Println(id)
 	}
 
-	totals := make([]int, videoNum)
-	userPref := make([][]int, userNum)
-	for i := range userPref {
-		userPref[i] = make([]int, videoNum)
+	userDist := readUserDist(fileDir)
+	if userNum > len(userDist) {
+		userNum = len(userDist)
 	}
-	zipf := rand.NewZipf(ran, 3, 5, uint64(videoNum))
-	userDist := make(map[int]int)
-	for i := 0; i < 1000000; i++ {
-		userDist[int(zipf.Uint64())]++
-	}
-	u := 0
-	for i := range userDist {
-		for ; u < userNum*userDist[i]/1000000; u++ {
-			for j, v := range ran.Perm(videoNum) {
-				if j < i+1 {
-					userPref[u][v] = 60 + rand.Intn(40)
-				} else {
-					userPref[u][v] = rand.Intn(10)
-				}
-				totals[v] += userPref[u][v]
-			}
-		}
+	userDist = userDist[:userNum]
+	userDistTotal := 0
+	for _, value := range userDist {
+		userDistTotal += value
 	}
 
 	err := os.MkdirAll(fileDir+"output", os.ModePerm)
 	if err != nil {
 		panic(err)
 	}
-	f, err := os.Create(fileDir + "output/requests_" + strconv.Itoa(videoNum) + "_" + strconv.Itoa(userNum) + strconv.FormatFloat(proportion, 'f', 7, 64) + ".csv")
+	f, err := os.Create(fileDir + "output/requests_" + strconv.Itoa(videoNum) + "_" + strconv.Itoa(userNum) + "_" + strconv.FormatFloat(proportion, 'f', 7, 64) + ".csv")
 	if err != nil {
 		panic(err)
 	}
@@ -79,12 +76,12 @@ func GenerateRequests(fileDir string, userNum int, proportion float64) {
 			order := ran.Perm(len(req))
 			for _, i := range order {
 				v := req[i]
-				r := ran.Float64() * float64(totals[v])
-				for u, pref := range userPref {
-					r -= float64(pref[v])
-					if r < 0 && t-lastReq[u] >= 60 {
+				r := ran.Float64() * float64(userDistTotal)
+				for u, count := range userDist {
+					r -= float64(count)
+					if r < 0 && t-lastReq[u] >= 0 {
 						lastReq[u] = t
-						f.WriteString(strconv.Itoa(t) + "\t" + strconv.Itoa(v) + "\t" + strconv.Itoa(u) + "\n")
+						f.WriteString(strconv.Itoa(t) + "\t" + strconv.Itoa(u) + "\t" + strconv.Itoa(v) + "\n")
 						break
 					}
 				}
