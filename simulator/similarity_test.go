@@ -4,7 +4,7 @@ import "testing"
 
 func TestSmallCellList_calSimilarity(t *testing.T) {
 	formula = exponential
-	t.Log("scl.calSimilarity:", smallCells.calSimilarity(nil))
+	t.Log("scl.calSimilarity:", smallCells.calSimilarity(false, 0, nil))
 }
 
 func TestFilePop_calSimilarity(t *testing.T) {

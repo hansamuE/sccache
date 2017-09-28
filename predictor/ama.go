@@ -34,7 +34,7 @@ func calArithmeticalAverageC(input []int, t int, ow int) float64 {
 
 func (p *ama) Predict(input []int) ([]int, error) {
 	if len(input) < 2 {
-		return nil, errors.New("No sufficient data to predict.")
+		return nil, errors.New("no sufficient data to predict")
 	}
 
 	output := make([]int, len(input)+1)

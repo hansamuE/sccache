@@ -2,8 +2,9 @@ package predictor
 
 import (
 	"errors"
-	"github.com/gonum/stat"
 	"math"
+
+	"github.com/gonum/stat"
 )
 
 type gma struct {
@@ -37,7 +38,7 @@ func calGeometricalAverageC(input []int, t int, ow int) float64 {
 
 func (p *gma) Predict(input []int) ([]int, error) {
 	if len(input) < 2 {
-		return nil, errors.New("No sufficient data to predict.")
+		return nil, errors.New("no sufficient data to predict")
 	}
 
 	output := make([]int, len(input)+1)

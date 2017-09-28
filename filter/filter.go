@@ -63,7 +63,7 @@ func sortedKeys(m map[string]int, order string) []string {
 
 func ReadArgs(args []string) (err error, path string, inputFileName string, comma rune, column []int, isURL bool, fileLimit int, timeThreshold int) {
 	if len(args) < 11 {
-		err = errors.New("Not Enough Arguments")
+		err = errors.New("not enough arguments")
 		return
 	}
 	path = args[2]

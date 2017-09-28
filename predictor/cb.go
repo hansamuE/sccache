@@ -20,7 +20,7 @@ func NewCB(name string, c float64) *cb {
 
 func (p *cb) Predict(input []int) ([]int, error) {
 	if len(input) < 2 {
-		return nil, errors.New("No sufficient data to predict.")
+		return nil, errors.New("no sufficient data to predict")
 	}
 
 	output := make([]int, len(input)+1)

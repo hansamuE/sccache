@@ -13,7 +13,7 @@ func TestCalStat(t *testing.T) {
 }
 
 func TestArrangeCooperation(t *testing.T) {
-	csl = smallCells.arrangeCooperation(-1, exponential)
+	csl = smallCells.arrangeCooperation(configs[0].ParametersList[0])
 	t.Log("cacheStorages:", csl)
 }
 
